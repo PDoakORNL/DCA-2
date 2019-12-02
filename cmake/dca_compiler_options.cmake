@@ -39,9 +39,16 @@ if (DCA_HAVE_CUDA)
       -Xcompiler -Wall
       -Xcompiler -Wextra
       -Xcompiler -Wno-unused-parameter
-      -Xcompiler -Wno-switch
+      -Xcompiler -Wno-switch)
+    if (DCA_THREADING_FLAGS)
+      list(APPEND CUDA_NVCC_FLAGS
       -Xcompiler ${DCA_THREADING_FLAGS})
+    endif (DCA_THREADING_FLAGS)
+    list(APPEND CUDA_NVCC_FLAGS_DEBUG
+      -G)
   else (CUDA_VERSION VERSION_GREATER "8.1.0")
+    MESSAGE("CUDA versions < 9.0 are deprecated and are known to have issues.")
+    MESSAGE("If you have trouble please upgrade your CUDA or use an older version of DCA++")
     list(APPEND CUDA_NVCC_FLAGS
       -arch=${CUDA_GPU_ARCH}
       -std=c++11
