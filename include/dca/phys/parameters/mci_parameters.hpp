@@ -12,6 +12,8 @@
 #ifndef DCA_PHYS_PARAMETERS_MCI_PARAMETERS_HPP
 #define DCA_PHYS_PARAMETERS_MCI_PARAMETERS_HPP
 
+#include <mpi.h>
+
 #include <cassert>
 #include <iostream>
 #include <limits>
