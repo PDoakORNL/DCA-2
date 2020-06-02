@@ -32,6 +32,9 @@
 #include "dca/util/pack_operations.hpp"
 #include "dca/util/type_utils.hpp"
 
+#include "dca/parallel/util/get_workload.hpp"
+#include "mpi.h"
+
 namespace dca {
 namespace func {
 // dca::func::
@@ -47,7 +50,9 @@ public:
   // Default constructor
   // Constructs the function with the name name.
   // Postcondition: All elements are set to zero.
-  function(const std::string& name = default_name_);
+  // Special case: when distributed_g4_enabled, G4 related variables only gets
+  // allocation of 1/p of original G4 size, where p = #mpiranks
+  function(const std::string& name = default_name_, const bool distributed_g4_enabled = false);
 
   // Copy constructor
   // Constructs the function with the a copy of elements and name of other.
@@ -77,6 +82,8 @@ public:
   //               the other function's construction.
   // Postcondition: The function's name is unchanged.
   function<scalartype, domain>& operator=(const function<scalartype, domain>& other);
+  template <typename Scalar2>
+  function<scalartype, domain>& operator=(const function<Scalar2, domain>& other);
 
   // Move assignment operator
   // Replaces the function's elements with those of other using move semantics.
@@ -108,6 +115,10 @@ public:
   }
   std::size_t size() const {
     return Nb_elements;
+  }
+
+  void reset_size(std::size_t Nb_elements_new) {
+    Nb_elements = Nb_elements_new;
   }
   // Returns the size of the leaf domain with the given index.
   // Does not return function values!
@@ -274,7 +285,7 @@ template <typename scalartype, class domain>
 const std::string function<scalartype, domain>::default_name_ = "no-name";
 
 template <typename scalartype, class domain>
-function<scalartype, domain>::function(const std::string& name)
+function<scalartype, domain>::function(const std::string& name, const bool distributed_g4_enabled)
     : name_(name),
       function_type(__PRETTY_FUNCTION__),
       dmn(),
@@ -283,9 +294,16 @@ function<scalartype, domain>::function(const std::string& name)
       size_sbdm(dmn.get_leaf_domain_sizes()),
       step_sbdm(dmn.get_leaf_domain_steps()),
       fnc_values(nullptr) {
-  fnc_values = new scalartype[Nb_elements];
-  for (int linind = 0; linind < Nb_elements; ++linind)
-    setToZero(fnc_values[linind]);
+  if(name.substr(0, 2) == "G4" && distributed_g4_enabled)
+  {
+    int my_rank, mpi_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    Nb_elements = dca::parallel::util::getWorkload(dmn.get_size(), mpi_size, my_rank);
+  }
+    fnc_values = new scalartype[Nb_elements];
+    for (int linind = 0; linind < Nb_elements; ++linind)
+      setToZero(fnc_values[linind]);
 }
 
 template <typename scalartype, class domain>
@@ -341,6 +359,18 @@ function<scalartype, domain>& function<scalartype, domain>::operator=(
 
     std::copy_n(other.values(), Nb_elements, fnc_values);
   }
+
+  return *this;
+}
+
+template <typename Scalar, class domain>
+template <typename Scalar2>
+function<Scalar, domain>& function<Scalar, domain>::operator=(const function<Scalar2, domain>& other) {
+  if (size() != other.size()) {
+    throw(std::logic_error("Function size does not match."));
+  }
+
+  std::copy_n(other.values(), Nb_elements, fnc_values);
 
   return *this;
 }

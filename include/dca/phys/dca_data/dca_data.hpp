@@ -450,7 +450,10 @@ void DcaData<Parameters>::write(Writer& writer) {
   writer.execute(Sigma_err_);
 
   if (parameters_.dump_lattice_self_energy()) {
-    writer.execute(Sigma_lattice);
+    if (parameters_.do_dca_plus())
+      writer.execute(Sigma_lattice);
+    else if (parameters_.doPostInterpolation())
+      writer.execute(Sigma_lattice_interpolated);
   }
 
   if (parameters_.dump_cluster_Greens_functions()) {
@@ -472,7 +475,9 @@ void DcaData<Parameters>::write(Writer& writer) {
     writer.execute(G0_r_t_cluster_excluded);
   }
 
-  if (parameters_.isAccumulatingG4()) {
+  // When distributed_g4_enabled, one should assume G4 size is fairly large and then should not
+  // accumulate G4 into one node and thus cannot write it out
+  if (parameters_.isAccumulatingG4() && !parameters_.distributed_g4_enabled()) {
     if (!(parameters_.dump_cluster_Greens_functions())) {
       writer.execute(G_k_w);
       writer.execute(G_k_w_err_);
