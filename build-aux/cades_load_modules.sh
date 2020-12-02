@@ -9,7 +9,7 @@ module load PE-gnu/3.0
 spack load emacs@26.3
 spack load git
 spack load gcc@8.2.0
-spack load openmpi/qnfab5m
+spack load openmpi/es3lk7p
 spack load fftw%gcc@8.2.0
 spack load ninja/v2bqky4
 spack load cmake/g4ybxxf
