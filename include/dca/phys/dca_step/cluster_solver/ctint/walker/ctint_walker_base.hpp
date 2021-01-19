@@ -254,7 +254,8 @@ void CtintWalkerBase<Parameters, Real>::initialize(int iteration) {
 
 template <class Parameters, typename Real>
 void CtintWalkerBase<Parameters, Real>::setMFromConfig() {
-  mc_log_weight_ = 1.;
+  // watchout this was 1 until autocorrelation
+  mc_log_weight_ = 0.;
   sign_ = 1;
 
   for (int s = 0; s < 2; ++s) {
@@ -272,7 +273,7 @@ void CtintWalkerBase<Parameters, Real>::setMFromConfig() {
 
     if (M.nrRows()) {
       const auto [log_det, sign] = linalg::matrixop::inverseAndLogDeterminant(M);
-      mc_log_weight_ += log_det;
+      mc_log_weight_ -= log_det; // Weight proportional to det(M^{-1})
       sign_ *= sign;
     }
   }

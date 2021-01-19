@@ -66,7 +66,6 @@ TEST(AnalysisDCAParticleParticleUpDownFullTest, LeadingEigenvalues) {
   dca_data.read(static_cast<std::string>(DCA_SOURCE_DIR "/test/system-level/analysis/dca_tp.hdf5"));
 
   BseSolverType bse_solver(parameters, dca_data);
-
   bse_solver.calculateSusceptibilities();
 
   std::cout << "\nChecking data.\n" << std::endl;
@@ -104,9 +103,9 @@ TEST(AnalysisDCAParticleParticleUpDownFullTest, LeadingEigenvalues) {
   }
   for (int i = 0; i < leading_symmetry_decomposition.size(); ++i) {
     EXPECT_NEAR(std::abs(leading_symmetry_decomposition_check(i).real()),
-                std::abs(leading_symmetry_decomposition(i).real()), 1.e-10);
+                std::abs(leading_symmetry_decomposition(i).real()), 1.e-8);
     EXPECT_NEAR(std::abs(leading_symmetry_decomposition_check(i).imag()),
-                std::abs(leading_symmetry_decomposition(i).imag()), 1.e-10);
+                std::abs(leading_symmetry_decomposition(i).imag()), 1.e-8);
   }
 
   std::cout << "\nWriting data.\n" << std::endl;

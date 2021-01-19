@@ -1,5 +1,5 @@
-// Copyright (C) 2018 ETH Zurich
-// Copyright (C) 2018 UT-Battelle, LLC
+// Copyright (C) 2020 ETH Zurich
+// Copyright (C) 2020 UT-Battelle, LLC
 // All rights reserved.
 //
 // See LICENSE for terms of usage.
@@ -25,13 +25,12 @@
 #include <utility>
 #include <vector>
 
+#include "dca/distribution/dist_types.hpp"
 #include "dca/function/domains.hpp"
 #include "dca/function/function.hpp"
 #include "dca/function/util/real_complex_conversion.hpp"
-#include "dca/io/hdf5/hdf5_reader.hpp"
-#include "dca/io/hdf5/hdf5_writer.hpp"
-#include "dca/io/json/json_reader.hpp"
-#include "dca/io/json/json_writer.hpp"
+#include "dca/io/reader.hpp"
+#include "dca/io/writer.hpp"
 #include "dca/linalg/linalg.hpp"
 #include "dca/math/function_transform/function_transform.hpp"
 #include "dca/math/util/vector_operations.hpp"
@@ -104,12 +103,10 @@ public:
   DcaData(Parameters& parameters_ref);
 
   void read(std::string filename);
-  template <typename Reader>
-  void read(Reader& reader);
+  void read(io::Reader& reader);
 
-  void write(std::string filename);
   template <typename Writer>
-  void write(Writer& reader);
+  void write(Writer& writer);
 
   void initialize();
   void initializeH0_and_H_i();
@@ -305,10 +302,15 @@ DcaData<Parameters>::DcaData(/*const*/ Parameters& parameters_ref)
   // We want to avoid copies because function's copy ctor does not copy the name (and because copies
   // are expensive).
   for (auto channel : parameters_.get_four_point_channels()) {
-    // Allocate memory for G4.
-    G4_.emplace_back("G4_" + toString(channel));
-    // Allocate memory for error on G4.
-    G4_err_.emplace_back("G4_" + toString(channel) + "_err");
+    // Allocate memory for G4, eventually distributed among all processes.
+    if (parameters_.get_g4_distribution() == DistType::MPI) {
+      G4_.emplace_back("G4_" + toString(channel), concurrency_);
+      G4_err_.emplace_back("G4_" + toString(channel) + "_err", concurrency_);
+    }
+    else {
+      G4_.emplace_back("G4_" + toString(channel));
+      G4_err_.emplace_back("G4_" + toString(channel) + "_err");
+    }
   }
 }
 
@@ -317,15 +319,13 @@ void DcaData<Parameters>::read(std::string filename) {
   if (concurrency_.id() == concurrency_.first())
     std::cout << "\n\n\t starts reading \n\n";
 
-  if (concurrency_.id() == concurrency_.first()) {
-    dca::io::HDF5Reader reader;
-    reader.open_file(filename);
-    this->read(reader);
-    reader.close_file();
-  }
+  dca::io::Reader reader(parameters_.get_output_format());
+
+  reader.open_file(filename);
+  read(reader);
+  reader.close_file();
 
   concurrency_.broadcast(parameters_.get_chemical_potential());
-
   concurrency_.broadcast_object(Sigma);
 
   if (parameters_.isAccumulatingG4()) {
@@ -337,8 +337,7 @@ void DcaData<Parameters>::read(std::string filename) {
 }
 
 template <class Parameters>
-template <typename Reader>
-void DcaData<Parameters>::read(Reader& reader) {
+void DcaData<Parameters>::read(io::Reader& reader) {
   reader.open_group("parameters");
 
   reader.open_group("physics");
@@ -364,19 +363,6 @@ void DcaData<Parameters>::read(Reader& reader) {
   }
 
   reader.close_group();
-}
-
-template <class Parameters>
-void DcaData<Parameters>::write(std::string file_name) {
-  std::cout << "\n\n\t\t start writing " << file_name << "\n\n";
-
-  dca::io::HDF5Writer writer;
-  writer.open_file(file_name);
-
-  parameters_.write(writer);
-  this->write(writer);
-
-  writer.close_file();
 }
 
 template <class Parameters>
@@ -443,7 +429,10 @@ void DcaData<Parameters>::write(Writer& writer) {
     writer.execute(G0_r_t_cluster_excluded);
   }
 
-  if (parameters_.isAccumulatingG4()) {
+  // When distributed_g4_enabled, one should assume G4 size is fairly large and then should not
+  // accumulate G4 into one node and thus cannot write it out
+  // Until ADIOS2 is added
+  if (parameters_.isAccumulatingG4() && parameters_.get_g4_distribution() == DistType::NONE) {
     if (!(parameters_.dump_cluster_Greens_functions())) {
       writer.execute(G_k_w);
       writer.execute(G_k_w_err_);
@@ -528,6 +517,28 @@ void DcaData<Parameters>::initialize_G0() {
   G0_r_t_cluster_excluded = G0_r_t;
 }
 
+template <class Parameters>
+void DcaData<Parameters>::initializeSigma(const std::string& filename) {
+  if (concurrency_.id() == concurrency_.first()) {
+    io::Reader reader(parameters_.get_output_format());
+    reader.open_file(filename);
+
+    if (parameters_.adjust_chemical_potential()) {
+      reader.open_group("parameters");
+      reader.open_group("physics");
+      reader.execute("chemical-potential", parameters_.get_chemical_potential());
+      reader.close_group();
+      reader.close_group();
+    }
+
+    reader.open_group("functions");
+    reader.execute(Sigma);
+    reader.close_group();
+  }
+
+  concurrency_.broadcast(parameters_.get_chemical_potential());
+  concurrency_.broadcast(Sigma);
+}
 
 template <class Parameters>
 void DcaData<Parameters>::compute_single_particle_properties() {

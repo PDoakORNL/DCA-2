@@ -235,8 +235,8 @@ private:
 };
 
 template <class Parameters, class Data, typename Real>
-TpEqualTimeAccumulator<Parameters, Data, Real>::TpEqualTimeAccumulator(
-    const Parameters& parameters_ref, Data& MOMS_ref, int id)
+TpEqualTimeAccumulator<Parameters, Data, Real>::TpEqualTimeAccumulator(const Parameters& parameters_ref,
+                                                                       Data& MOMS_ref, int id)
     : parameters(parameters_ref),
       concurrency(parameters.get_concurrency()),
 

@@ -44,6 +44,7 @@ public:
   using Matrix = typename BaseClass::Matrix;
   using MatrixPair = typename BaseClass::MatrixPair;
   using MatrixView = typename linalg::MatrixView<Real, linalg::CPU>;
+  using ConstView = typename linalg::MatrixView<const Real, linalg::CPU>;
 
 public:
   CtintWalker(const Parameters& pars_ref, const Data& /*data*/, Rng& rng_ref, int id = 0);
@@ -73,7 +74,7 @@ private:
   Real removalProbability();
   void applyRemoval();
 
-  virtual void smallInverse(const MatrixView& in, MatrixView& out, int s);
+  virtual void smallInverse(const ConstView& in, MatrixView& out, int s);
   virtual void smallInverse(MatrixView& in_out, int s);
 
 protected:
@@ -117,6 +118,9 @@ CtintWalker<linalg::CPU, Parameters, Real>::CtintWalker(const Parameters& parame
                                                         const Data& /*data*/, Rng& rng_ref, int id)
     : BaseClass(parameters_ref, rng_ref, id),
       det_ratio_{1, 1},
+      // If we perform double updates, we need at most 3 rng values for: selecting the first vertex,
+      // deciding if we select a second one, select the second vertex. Otherwise only the first is
+      // needed.
       n_removal_rngs_(configuration_.getDoubleUpdateProb() ? 3 : 1) {}
 
 template <class Parameters, typename Real>
@@ -147,7 +151,8 @@ void CtintWalker<linalg::CPU, Parameters, Real>::doStep() {
       n_accepted_ += tryVertexRemoval();
     else {
       // Burn random numbers for testing consistency.
-      for (unsigned i = 0; i < n_removal_rngs_; ++i)
+      // One extra rng for the acceptance probability.
+      for (unsigned i = 0; i < n_removal_rngs_ + 1; ++i)
         rng_();
     }
   }
@@ -251,10 +256,10 @@ Real CtintWalker<linalg::CPU, Parameters, Real>::insertionProbability(const int 
 template <class Parameters, typename Real>
 Real CtintWalker<linalg::CPU, Parameters, Real>::removalProbability() {
   std::array<double, 3> removal_rngs;
-  for(unsigned i = 0; i < n_removal_rngs_; ++i)
-      removal_rngs[i] = rng_();
+  for (unsigned i = 0; i < n_removal_rngs_; ++i)
+    removal_rngs[i] = rng_();
 
-  const auto candidates = configuration_.randomRemovalCandidateSlow(removal_rngs);
+  const auto candidates = configuration_.randomRemovalCandidate(removal_rngs);
   removal_list_.clear();
   for (int candidate : candidates) {
     if (candidate != -1)
@@ -301,7 +306,7 @@ void CtintWalker<linalg::CPU, Parameters, Real>::applyInsertion(const MatrixPair
       continue;
     // update M matrix.
     const auto& R = Rp[s];
-    const auto S = linalg::makeConstantView(Sp[s]);
+    const ConstView S(Sp[s]);
     auto& M = M_[s];
     const auto& M_Q = M_Q_[s];
     const int m_size = M.nrCols();
@@ -309,7 +314,7 @@ void CtintWalker<linalg::CPU, Parameters, Real>::applyInsertion(const MatrixPair
     if (not m_size) {
       M.resizeNoCopy(delta);
       auto M_view = MatrixView(M);
-      smallInverse(*S, M_view, s);
+      smallInverse(S, M_view, s);
       continue;
     }
 
@@ -320,7 +325,7 @@ void CtintWalker<linalg::CPU, Parameters, Real>::applyInsertion(const MatrixPair
     M.resize(m_size + delta);
     //  S_tilde = S^-1.
     MatrixView S_tilde(M, m_size, m_size, delta, delta);
-    smallInverse(*S, S_tilde, s);
+    smallInverse(S, S_tilde, s);
 
     // R_tilde = - S * R * M
     MatrixView R_tilde(M, m_size, 0, delta, m_size);
@@ -406,7 +411,7 @@ void CtintWalker<linalg::CPU, Parameters, Real>::moveRemovalToEnd() {
 }
 
 template <class Parameters, typename Real>
-void CtintWalker<linalg::CPU, Parameters, Real>::smallInverse(const MatrixView& in, MatrixView& out,
+void CtintWalker<linalg::CPU, Parameters, Real>::smallInverse(const ConstView& in, MatrixView& out,
                                                               const int s) {
   details::smallInverse(in, out, det_ratio_[s], ipiv_, v_work_);
 }

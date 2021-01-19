@@ -39,6 +39,7 @@ TEST(MciParametersTest, DefaultValues) {
   EXPECT_EQ(0, pars.get_time_correlation_window());
   EXPECT_EQ(false, pars.compute_G_correlation());
   EXPECT_EQ(0, pars.stamping_period());
+  EXPECT_EQ(DistType::NONE, pars.get_g4_distribution());
 }
 
 TEST(MciParametersTest, ReadAll) {
@@ -63,6 +64,7 @@ TEST(MciParametersTest, ReadAll) {
   EXPECT_EQ(100, pars.get_time_correlation_window());
   EXPECT_EQ(true, pars.compute_G_correlation());
   EXPECT_EQ(100, pars.stamping_period());
+  EXPECT_EQ(DistType::MPI, pars.get_g4_distribution());
 }
 
 TEST(MciParametersTest, ReadPositiveIntegerSeed) {

@@ -1,5 +1,5 @@
-// Copyright (C) 2018 ETH Zurich
-// Copyright (C) 2018 UT-Battelle, LLC
+// Copyright (C) 2020 ETH Zurich
+// Copyright (C) 2020 UT-Battelle, LLC
 // All rights reserved.
 //
 // See LICENSE for terms of usage.
@@ -33,8 +33,6 @@ namespace dca {
 namespace io {
 // dca::io
 
-bool fileExists(const std::string& filename);
-
 class HDF5Writer {
 public:
   typedef H5::H5File file_type;
@@ -47,12 +45,8 @@ public:
 
   ~HDF5Writer();
 
-  constexpr bool is_reader() {
-    return false;
-  }
-  constexpr bool is_writer() {
-    return true;
-  }
+  constexpr static bool is_reader = false;
+  constexpr static bool is_writer = true;
 
   void open_file(std::string file_name_ref, bool overwrite = true);
   void close_file();
@@ -122,10 +116,6 @@ public:
     execute(name, obj);
   }
 
-  operator bool() const {
-    return static_cast<bool>(file_);
-  }
-
   void lock() {
     H5::Exception::dontPrint();
     mutex_.lock();
@@ -133,6 +123,11 @@ public:
 
   void unlock() {
     mutex_.unlock();
+  }
+
+  // The noexcept may not be necessary
+  operator bool() const noexcept {
+    return static_cast<bool>(file_);
   }
 
   void set_verbose(bool verbose) {
@@ -155,8 +150,6 @@ private:
   std::vector<std::string> my_paths_;
 
   bool verbose_;
-
-  std::mutex mutex_;
 
   std::vector<hsize_t> size_check_;
 };
