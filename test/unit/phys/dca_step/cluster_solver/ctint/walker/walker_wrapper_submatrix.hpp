@@ -12,6 +12,7 @@
 #ifndef TEST_UNIT_PHYS_DCA_STEP_CLUSTER_SOLVER_CTINT_WALKER_WALKER_WRAPPER_SUBMATRIX_HPP
 #define TEST_UNIT_PHYS_DCA_STEP_CLUSTER_SOLVER_CTINT_WALKER_WALKER_WRAPPER_SUBMATRIX_HPP
 
+#include "dca/distribution/dist_types.hpp"
 #include "dca/linalg/device_type.hpp"
 #include "dca/phys/dca_data/dca_data.hpp"
 #include "dca/phys/dca_step/cluster_solver/ctint/walker/ctint_walker_cpu_submatrix.hpp"
@@ -29,29 +30,30 @@ using namespace dca::phys::solver::ctint;
 using dca::linalg::CPU;
 using dca::linalg::GPU;
 using dca::linalg::DeviceType;
+using dca::DistType;
 
-template <class Parameters, dca::linalg::DeviceType device, typename Scalar>
+template <class Parameters, dca::linalg::DeviceType device, typename Scalar, DistType DIST = DistType::NONE>
 struct WalkerSelector;
 
-template <class Parameters, typename Scalar>
-struct WalkerSelector<Parameters, CPU, Scalar> {
+template <class Parameters, typename Scalar, DistType DIST>
+struct WalkerSelector<Parameters, CPU, Scalar, DIST> {
   // Fix rng order for testing.
-  using type = CtintWalkerSubmatrixCpu<Parameters, Scalar>;
+  using type = CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>;
 };
 
 #ifdef DCA_HAVE_CUDA
-template <class Parameters, typename Scalar>
-struct WalkerSelector<Parameters, GPU, Scalar> {
-  using type = CtintWalkerSubmatrixGpu<Parameters, Scalar>;
+template <class Parameters, typename Scalar, DistType DIST>
+struct WalkerSelector<Parameters, GPU, Scalar, DIST> {
+  using type = CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>;
 };
 #endif  // DCA_HAVE_CUDA
 
 using namespace dca::phys::solver::ctint;
-template <class Parameters, typename Scalar = double, DeviceType device_t = CPU>
-struct WalkerWrapperSubmatrix : public WalkerSelector<Parameters, device_t, Scalar>::type {
-  using BaseClass = typename WalkerSelector<Parameters, device_t, Scalar>::type;
-  using typename BaseClass::Rng;
-  using typename BaseClass::Data;
+template <class Parameters, DeviceType device_t = CPU, typename Scalar = double, DistType DIST = DistType::NONE>
+struct WalkerWrapperSubmatrix : public WalkerSelector<Parameters, device_t, Scalar, DIST>::type {
+  using BaseClass = typename WalkerSelector<Parameters, device_t, Scalar, DIST>::type;
+  using Rng = typename BaseClass::Rng;
+  using Data = typename BaseClass::Data;
 
   WalkerWrapperSubmatrix(/*const*/ Parameters& parameters_ref, Rng& rng_ref)
       : BaseClass(parameters_ref, dca::phys::DcaData<Parameters>(parameters_ref), rng_ref, 0),

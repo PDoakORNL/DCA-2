@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "dca/distribution/dist_types.hpp"
 #include "dca/io/buffer.hpp"
 #include "dca/math/util/phase.hpp"
 #include "dca/linalg/linalg.hpp"
@@ -45,18 +46,18 @@ namespace solver {
 namespace ctint {
 // dca::phys::solver::ctint::
 
-template <linalg::DeviceType device_type, class Parameters, typename Scalar>
+template <linalg::DeviceType device_type, class Parameters, typename Scalar, DistType DIST>
 class CtintWalker;
 
-template <class Parameters, typename _Scalar = double>
+template <class Parameters, typename Scalar_p = double, DistType DIST = DistType::NONE>
 class CtintWalkerBase {
 public:
-  using Scalar = _Scalar;
+  using Scalar = Scalar_p;
   using Real = dca::util::Real<Scalar>;
   constexpr static bool is_complex = dca::util::IsComplex<Scalar>::value;
 
   using parameters_type = Parameters;
-  using Data = DcaData<Parameters>;
+  using Data = DcaData<Parameters, DIST>;
   using Rng = typename Parameters::random_number_generator;
   using Profiler = typename Parameters::profiler_type;
   using Concurrency = typename Parameters::concurrency_type;
@@ -222,9 +223,9 @@ private:
   linalg::Vector<Real, linalg::CPU> work_;
 };
 
-template <class Parameters, typename Scalar>
-CtintWalkerBase<Parameters, Scalar>::CtintWalkerBase(const Parameters& parameters_ref, Rng& rng_ref,
-                                                     int id)
+template <class Parameters, typename Scalar, DistType DIST>
+CtintWalkerBase<Parameters, Real, DIST>::CtintWalkerBase(const Parameters& parameters_ref, Rng& rng_ref,
+                                                   int id)
     : parameters_(parameters_ref),
       concurrency_(parameters_.get_concurrency()),
 
@@ -241,8 +242,8 @@ CtintWalkerBase<Parameters, Scalar>::CtintWalkerBase(const Parameters& parameter
       beta_(parameters_.get_beta()),
       total_interaction_(vertices_.integratedInteraction()) {}
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::initialize(int iteration) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Real, DIST>::initialize(int iteration) {
   assert(total_interaction_);
   phase_.reset();
 
@@ -261,8 +262,8 @@ void CtintWalkerBase<Parameters, Scalar>::initialize(int iteration) {
   setMFromConfig();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::setMFromConfig() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::setMFromConfig() {
   mc_log_weight_ = 0.;
   phase_.reset();
 
@@ -295,16 +296,16 @@ void CtintWalkerBase<Parameters, Scalar>::setMFromConfig() {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::updateSweepAverages() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::updateSweepAverages() {
   order_avg_.addSample(order());
   // Track avg order for the final number of steps / sweep.
   if (!thermalized_ && order_avg_.count() >= parameters_.get_warm_up_sweeps() / 2)
     partial_order_avg_.addSample(order());
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::markThermalized() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::markThermalized() {
   thermalized_ = true;
 
   nb_steps_per_sweep_ = std::max(1., std::ceil(sweeps_per_meas_ * partial_order_avg_.mean()));
@@ -317,8 +318,8 @@ void CtintWalkerBase<Parameters, Scalar>::markThermalized() {
   setMFromConfig();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::updateShell(int meas_id, int meas_to_do) const {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::updateShell(int meas_id, int meas_to_do) const {
   if (concurrency_.id() == concurrency_.first() && meas_id > 1 &&
       (meas_id % dca::util::ceilDiv(meas_to_do, 10)) == 0) {
     std::cout << "\t\t\t" << int(double(meas_id) / double(meas_to_do) * 100) << " % completed \t ";
@@ -334,8 +335,8 @@ void CtintWalkerBase<Parameters, Scalar>::updateShell(int meas_id, int meas_to_d
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::printSummary() const {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::printSummary() const {
   std::cout << "\n"
             << "Walker: process ID = " << concurrency_.id() << ", thread ID = " << thread_id_ << "\n"
             << "-------------------------------------------\n";
@@ -349,10 +350,10 @@ void CtintWalkerBase<Parameters, Scalar>::printSummary() const {
   std::cout << std::endl;
 }
 
-template <class Parameters, typename Scalar>
+template <class Parameters, typename Scalar, DistType DIST>
 template <linalg::DeviceType device_type>
-void CtintWalkerBase<Parameters, Scalar>::setDMatrixBuilder(
-    const dca::phys::solver::G0Interpolation<device_type, Scalar>& g0) {
+void CtintWalkerBase<Parameters, Scalar, DIST>::setDMatrixBuilder(
+    const dca::phys::solver::ctint::G0Interpolation<device_type, Scalar>& g0) {
   using RDmn = typename Parameters::RClusterDmn;
 
   if (d_builder_ptr_)
@@ -361,16 +362,16 @@ void CtintWalkerBase<Parameters, Scalar>::setDMatrixBuilder(
   d_builder_ptr_ = std::make_unique<DMatrixBuilder<device_type, Scalar>>(g0, n_bands_, RDmn());
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::setDMatrixAlpha(const std::array<double, 3>& alphas,
-                                                          bool adjust_dd) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::setDMatrixAlpha(const std::array<double, 3>& alphas,
+                                                        bool adjust_dd) {
   assert(d_builder_ptr_);
   d_builder_ptr_->setAlphas(alphas, adjust_dd);
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::setInteractionVertices(const Data& data,
-                                                                 const Parameters& parameters) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::setInteractionVertices(const Data& data,
+                                                               const Parameters& parameters) {
   vertices_.reset();
   vertices_.initialize(parameters.getDoubleUpdateProbability(), parameters.getAllSitesPartnership());
   vertices_.initializeFromHamiltonian(data.H_interactions);
@@ -380,8 +381,8 @@ void CtintWalkerBase<Parameters, Scalar>::setInteractionVertices(const Data& dat
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerBase<Parameters, Scalar>::computeM(MatrixPair& m_accum) const {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerBase<Parameters, Scalar, DIST>::computeM(MatrixPair& m_accum) const {
   m_accum = M_;
 }
 

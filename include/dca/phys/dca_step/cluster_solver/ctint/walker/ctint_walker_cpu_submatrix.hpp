@@ -38,11 +38,11 @@ namespace phys {
 namespace solver {
 namespace ctint {
 
-template <class Parameters, typename Scalar>
-class CtintWalkerSubmatrixCpu : public CtintWalkerBase<Parameters, Scalar> {
+template <class Parameters, typename Scalar, DistType DIST>
+class CtintWalkerSubmatrixCpu : public CtintWalkerBase<Parameters, Scalar, DIST> {
 public:
   using this_type = CtintWalkerSubmatrixCpu;
-  using BaseClass = CtintWalkerBase<Parameters, Scalar>;
+  using BaseClass = CtintWalkerBase<Parameters, Scalar, DIST>;
   using typename BaseClass::Rng;
   using typename BaseClass::Data;
   using typename BaseClass::Profiler;
@@ -199,10 +199,10 @@ protected:
   using BaseClass::flop_;
 };
 
-template <class Parameters, typename Scalar>
-CtintWalkerSubmatrixCpu<Parameters, Scalar>::CtintWalkerSubmatrixCpu(const Parameters& parameters_ref,
-                                                                     const Data& /*data*/,
-                                                                     Rng& rng_ref, int id)
+template <class Parameters, typename Scalar, DistType DIST>
+CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::CtintWalkerSubmatrixCpu(const Parameters& parameters_ref,
+                                                                   const Data& /*data*/,
+                                                                   Rng& rng_ref, int id)
     : BaseClass(parameters_ref, rng_ref, id) {
   for (int b = 0; b < n_bands_; ++b) {
     for (int i = 1; i <= 3; ++i) {
@@ -223,20 +223,20 @@ CtintWalkerSubmatrixCpu<Parameters, Scalar>::CtintWalkerSubmatrixCpu(const Param
     std::cout << "\nCT-INT submatrix walker created." << std::endl;
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::setMFromConfig() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::setMFromConfig() {
   BaseClass::setMFromConfig();
   transformM();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::doSweep() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::doSweep() {
   Profiler profiler(__FUNCTION__, "CT-INT walker", __LINE__, thread_id_);
   doSteps();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::doSteps() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::doSteps() {
   // Here nbr_of_steps is the number of single steps/moves during the current sweep,
   // while nbr_of_submatrix_steps is the number of times the entire submatrix algorithm  is run.
 
@@ -258,15 +258,15 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::doSteps() {
   BaseClass::updateSweepAverages();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::doStep() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::doStep() {
   generateDelayedMoves(nbr_of_moves_to_delay_);
   doSubmatrixUpdate();
 }
 
 // Do one step with arbitrary number of moves. For testing.
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::doStep(const int nbr_of_movesto_delay) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::doStep(const int nbr_of_movesto_delay) {
   std::cout << "\nStarted doStep() function for testing." << std::endl;
 
   generateDelayedMoves(nbr_of_movesto_delay);
@@ -276,8 +276,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::doStep(const int nbr_of_movest
   doSubmatrixUpdate();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::generateDelayedMoves(const int nbr_of_movesto_delay) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::generateDelayedMoves(const int nbr_of_movesto_delay) {
   assert(nbr_of_movesto_delay > 0);
 
   delayed_moves_.clear();
@@ -324,16 +324,16 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::generateDelayedMoves(const int
   std::iota(conf_removal_list_.begin(), conf_removal_list_.end(), config_size_init_);
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::doSubmatrixUpdate() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::doSubmatrixUpdate() {
   computeMInit();
   computeGInit();
   mainSubmatrixProcess();
   updateM();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::mainSubmatrixProcess() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::mainSubmatrixProcess() {
   Profiler profiler(__FUNCTION__, "CT-INT walker", __LINE__, thread_id_);
 
   for (int s = 0; s < 2; ++s) {
@@ -541,8 +541,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::mainSubmatrixProcess() {
   BaseClass::n_steps_ += delayed_moves_.size();
 }
 
-template <class Parameters, typename Scalar>
-Move CtintWalkerSubmatrixCpu<Parameters, Scalar>::generateMoveType() {
+template <class Parameters, typename Scalar, DistType DIST>
+Move CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::generateMoveType() {
   if (rng_() <= 0.5)
     return INSERTION;
   else
@@ -551,8 +551,8 @@ Move CtintWalkerSubmatrixCpu<Parameters, Scalar>::generateMoveType() {
 
 // Extend M by adding non-interacting vertices.
 // M is not computed again and should be up-to-date.
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeMInit() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::computeMInit() {
   Profiler profiler(__FUNCTION__, "CT-INT walker", __LINE__, thread_id_);
 
   for (int s = 0; s < 2; ++s) {
@@ -594,8 +594,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeMInit() {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeGInit() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::computeGInit() {
   Profiler profiler(__FUNCTION__, "CT-INT walker", __LINE__, thread_id_);
 
   for (int s = 0; s < 2; ++s) {
@@ -627,9 +627,9 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeGInit() {
   }
 }
 
-template <class Parameters, typename Scalar>
-auto CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeAcceptanceProbability() {
-  Scalar acceptance_probability = det_ratio_;
+template <class Parameters, typename Scalar, DistType DIST>
+auto CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::computeAcceptanceProbability() {
+  Real acceptance_probability = det_ratio_;
 
   Scalar gamma_factor = 1;
   const auto move_type = current_move_->move_type;
@@ -698,8 +698,8 @@ auto CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeAcceptanceProbability()
   return std::make_tuple(acceptance_probability, mc_weight_ratio);
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::updateGammaInv(int s) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::updateGammaInv(int s) {
   Profiler profiler(__FUNCTION__, "CT-INT walker", __LINE__, thread_id_);
   const int delta = s_[s].nrRows();
   if (delta == 0)
@@ -732,8 +732,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::updateGammaInv(int s) {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::updateM() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::updateM() {
   Profiler profiler(__FUNCTION__, "CT-INT walker", __LINE__, thread_id_);
 
   for (int s = 0; s < 2; ++s) {
@@ -778,8 +778,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::updateM() {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::findSectorIndices(const int s) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::findSectorIndices(const int s) {
   sector_indices_[s].clear();
   for (auto index : index_) {
     configuration_.findIndices(sector_indices_[s], index, s);
@@ -792,8 +792,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::findSectorIndices(const int s)
 
 // Remove row and column of Gamma_inv with Woodbury's formula.
 // Gamma <- Gamma - U.V => GammaInv <- GammaInv + GammaInv.U.(Id-V.GammaInv.U)^(-1).V.GammaInv.
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::removeRowAndColOfGammaInv() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::removeRowAndColOfGammaInv() {
   Profiler profiler(__FUNCTION__, "CT-INT walker", __LINE__, thread_id_);
   for (int s = 0; s < 2; ++s) {
     const int delta = Gamma_indices_[s].size();
@@ -851,8 +851,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::removeRowAndColOfGammaInv() {
 }
 
 // This method is unused and left to potentially use as a testing reference.
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::recomputeGammaInv() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::recomputeGammaInv() {
   for (int s = 0; s < 2; ++s) {
     if (Gamma_inv_[s].nrRows() > 0)
       linalg::matrixop::inverse(Gamma_inv_[s]);
@@ -883,8 +883,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::recomputeGammaInv() {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::transformM() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::transformM() {
   for (int s = 0; s < 2; ++s) {
     for (int j = 0; j < M_[s].size().second; ++j) {
       for (int i = 0; i < M_[s].size().first; ++i) {
@@ -897,8 +897,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::transformM() {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeM(typename BaseClass::MatrixPair& m_accum) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::computeM(typename BaseClass::MatrixPair& m_accum) {
   for (int s = 0; s < 2; ++s) {
     m_accum[s].resizeNoCopy(M_[s].size());
 
@@ -913,8 +913,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeM(typename BaseClass::M
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeInsertionMatrices(
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::computeInsertionMatrices(
     const std::vector<int>& insertion_indices, const int s) {
   const int delta = insertion_indices.size();
 
@@ -949,8 +949,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeInsertionMatrices(
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeRemovalMatrix(const int s) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::computeRemovalMatrix(const int s) {
   const int delta = Gamma_indices_[s].size();
   s_[s].resizeNoCopy(delta);
   for (int j = 0; j < delta; ++j)
@@ -958,8 +958,8 @@ void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeRemovalMatrix(const int
       s_[s](i, j) = Gamma_inv_[s](Gamma_indices_[s][i], Gamma_indices_[s][j]);
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixCpu<Parameters, Scalar>::computeMixedInsertionAndRemoval(int s) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>::computeMixedInsertionAndRemoval(int s) {
   Gamma_inv_cpy_[s] = Gamma_inv_[s];
 
   if (sector_indices_[s].size() == 0) {

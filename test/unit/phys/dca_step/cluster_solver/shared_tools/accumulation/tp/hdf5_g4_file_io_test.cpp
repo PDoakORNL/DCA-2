@@ -10,7 +10,7 @@
 //
 // This file implements a write read of a largish G4 matrix
 
-#include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/tp/tp_accumulator.hpp"
+#include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/tp/tp_accumulator_cpu.hpp"
 
 #include <array>
 #include <map>
@@ -43,9 +43,9 @@ TEST_F(G4FileIoTest, ReadWrite) {
   dca::math::random::StdRandomWrapper<std::ranlux48_base> rng(0, 1, 0);
 
   auto fillG4 = [&rng](auto& G4) {
-                    for (size_t i = 0; i < G4.size(); ++i)
-                      G4(i) = rng();
-                };
+    for (size_t i = 0; i < G4.size(); ++i)
+      G4(i) = rng();
+  };
 
   dca::io::HDF5Writer writer;
   dca::io::HDF5Reader reader;
@@ -58,10 +58,10 @@ TEST_F(G4FileIoTest, ReadWrite) {
   Data::TpGreensFunction g4_work("G4");
   fillG4(g4_work);
 
-  const std::string self_consistent_large_G4 =
-      "g4_accumulator_test_large_G4.hdf5";
+  const std::string self_consistent_large_G4 = "g4_accumulator_test_large_G4.hdf5";
 
   writer.open_file(self_consistent_large_G4);
+  std::cout << "-- writer.execute name= " << func_names[g4_channel] << std::endl;
   writer.execute(func_names[g4_channel], g4_work);
   writer.close_file();
 

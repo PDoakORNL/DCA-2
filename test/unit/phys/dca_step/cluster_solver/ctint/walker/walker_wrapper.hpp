@@ -11,6 +11,7 @@
 #ifndef TEST_UNIT_PHYS_DCA_STEP_CLUSTER_SOLVER_CTINT_WALKER_WALKER_WRAPPER_HPP
 #define TEST_UNIT_PHYS_DCA_STEP_CLUSTER_SOLVER_CTINT_WALKER_WALKER_WRAPPER_HPP
 
+#include "dca/distribution/dist_types.hpp"
 #include "dca/linalg/device_type.hpp"
 #include "dca/phys/dca_step/cluster_solver/ctint/walker/ctint_walker_cpu.hpp"
 #include "dca/phys/dca_data/dca_data.hpp"
@@ -21,11 +22,14 @@ namespace solver {
 namespace ctint {
 // testing::phys::solver::ctint::
 
+using dca::DistType;
+
 using namespace dca::phys::solver::ctint;
-template <class Parameters, typename Scalar = double>
-class WalkerWrapper : public CtintWalker<dca::linalg::CPU, Parameters, Scalar> {
+template <class Parameters, typename Scalar = double, DistType DIST = DistType::NONE>
+class WalkerWrapper : public CtintWalker<dca::linalg::CPU, Parameters, Scalar, DIST> {
 public:
-  using BaseClass = CtintWalker<dca::linalg::CPU, Parameters, Scalar>;
+  using BaseClass = CtintWalker<dca::linalg::CPU, Parameters, Scalar, DIST>;
+>>>>>>> master
   using Rng = typename BaseClass::Rng;
 
   WalkerWrapper(Parameters& parameters_ref, Rng& rng_ref)

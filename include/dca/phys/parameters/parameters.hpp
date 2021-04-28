@@ -51,6 +51,7 @@
 #include "dca/phys/domains/time_and_frequency/vertex_time_domain.hpp"
 #include "dca/phys/models/traits.hpp"
 #include "dca/util/print_type.hpp"
+#include "dca/distribution/dist_types.hpp"
 
 namespace dca {
 namespace phys {
@@ -77,7 +78,6 @@ public:
   using random_number_generator = RandomNumberGenerator;
   using model_type = Model;
   using lattice_type = typename Model::lattice_type;
-
   constexpr static bool complex_g0 = lattice_type::complex_g0;
   using MCScalar = util::Scalar<config::McOptions::single_precision, complex_g0>;
 

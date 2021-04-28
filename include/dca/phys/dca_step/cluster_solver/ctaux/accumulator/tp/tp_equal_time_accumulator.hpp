@@ -880,6 +880,7 @@ auto TpEqualTimeAccumulator<Parameters, Data>::interpolate_akima(int b_i, int s_
   const int t_ind = static_cast<int>(scaled_tau);
 
 #ifndef NDEBUG
+  assert(t_ind < shifted_t::get_elements().size() / 2);
   const auto* positive_times =
       shifted_t::get_elements().data() + shifted_t::get_elements().size() / 2;
   assert(positive_times[t_ind] <= tau && tau < positive_times[t_ind] + 1. / N_div_beta);
@@ -890,7 +891,8 @@ auto TpEqualTimeAccumulator<Parameters, Data>::interpolate_akima(int b_i, int s_
 
   const int linind = 4 * nu_nu_r_dmn_t_t_shifted_dmn(b_i, s_i, b_j, s_j, delta_r, t_ind);
 
-  const Scalar* a_ptr = &akima_coefficients(linind);
+  assert(linind < akima_coefficients.size() );
+  const Real* a_ptr = &akima_coefficients(linind);
 
   const Scalar result =
       (a_ptr[0] + delta_tau * (a_ptr[1] + delta_tau * (a_ptr[2] + delta_tau * a_ptr[3])));

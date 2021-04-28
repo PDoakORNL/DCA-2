@@ -33,11 +33,12 @@ namespace solver {
 namespace ctint {
 // dca::phys::solver::ctint::
 
-template <class Parameters, class Scalar>
-class CtintWalker<linalg::CPU, Parameters, Scalar> : public CtintWalkerBase<Parameters, Scalar> {
+template <class Parameters, typename Scalar, DistType DIST>
+class CtintWalker<linalg::CPU, Parameters, Scalar, DIST> : public CtintWalkerBase<Parameters, Scalar, DIST> {
 public:
-  using this_type = CtintWalker<linalg::CPU, Parameters, Scalar>;
-  using BaseClass = CtintWalkerBase<Parameters, Scalar>;
+  using this_type = CtintWalker<linalg::CPU, Parameters, Scalar, DIST>;
+  using BaseClass = CtintWalkerBase<Parameters, Scalar, DIST>;
+
   using typename BaseClass::Rng;
   using typename BaseClass::Data;
   using typename BaseClass::Real;
@@ -45,6 +46,7 @@ public:
   using Matrix = typename BaseClass::Matrix;
   using MatrixPair = typename BaseClass::MatrixPair;
   using MatrixView = typename linalg::MatrixView<Scalar, linalg::CPU>;
+  using ConstView = typename linalg::MatrixView<const Scalar, linalg::CPU>;
 
 public:
   CtintWalker(const Parameters& pars_ref, const Data& /*data*/, Rng& rng_ref, int id = 0);
@@ -74,7 +76,7 @@ private:
   auto removalProbability() -> Scalar;
   void applyRemoval();
 
-  virtual void smallInverse(const MatrixView& in, MatrixView& out, int s);
+  virtual void smallInverse(const ConstView& in, MatrixView& out, int s);
   virtual void smallInverse(MatrixView& in_out, int s);
 
 protected:
@@ -113,9 +115,9 @@ private:
   const unsigned n_removal_rngs_;
 };
 
-template <class Parameters, class Scalar>
-CtintWalker<linalg::CPU, Parameters, Scalar>::CtintWalker(const Parameters& parameters_ref,
-                                                          const Data& /*data*/, Rng& rng_ref, int id)
+template <class Parameters, typename Scalar, DistType DIST>
+CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::CtintWalker(const Parameters& parameters_ref,
+                                                        const Data& /*data*/, Rng& rng_ref, int id)
     : BaseClass(parameters_ref, rng_ref, id),
       det_ratio_{1, 1},
       // If we perform double updates, we need at most 3 rng values for: selecting the first vertex,
@@ -123,8 +125,8 @@ CtintWalker<linalg::CPU, Parameters, Scalar>::CtintWalker(const Parameters& para
       // needed.
       n_removal_rngs_(configuration_.getDoubleUpdateProb() ? 3 : 1) {}
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::doSweep() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::doSweep() {
   int nb_of_steps;
   if (nb_steps_per_sweep_ < 0)  // Not thermalized or fixed.
     nb_of_steps = BaseClass::avgOrder() + 1;
@@ -139,8 +141,8 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::doSweep() {
   BaseClass::updateSweepAverages();
 }
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::doStep() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::doStep() {
   initializeStep();
 
   if (rng_() <= 0.5) {
@@ -160,8 +162,8 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::doStep() {
   assert(configuration_.checkConsistency());
 }
 
-template <class Parameters, class Scalar>
-bool CtintWalker<linalg::CPU, Parameters, Scalar>::tryVertexInsert() {
+template <class Parameters, typename Scalar, DistType DIST>
+bool CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::tryVertexInsert() {
   configuration_.insertRandom(rng_);
   const int delta_vertices = configuration_.lastInsertionSize();
 
@@ -189,8 +191,8 @@ bool CtintWalker<linalg::CPU, Parameters, Scalar>::tryVertexInsert() {
   return accept;
 }
 
-template <class Parameters, class Scalar>
-bool CtintWalker<linalg::CPU, Parameters, Scalar>::tryVertexRemoval() {
+template <class Parameters, typename Scalar, DistType DIST>
+bool CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::tryVertexRemoval() {
   acceptance_prob_ = removalProbability();
   const bool accept = rng_() < std::min(std::abs(acceptance_prob_), Real(1.));
 
@@ -208,8 +210,8 @@ bool CtintWalker<linalg::CPU, Parameters, Scalar>::tryVertexRemoval() {
   return accept;
 }
 
-template <class Parameters, class Scalar>
-auto CtintWalker<linalg::CPU, Parameters, Scalar>::insertionProbability(const int delta_vertices)
+template <class Parameters, class Scalar, DistType DIST>
+auto CtintWalker<linalg::CPU, Parameters, Scalar, Dist>::insertionProbability(const int delta_vertices)
     -> Scalar {
   const int old_size = configuration_.size() - delta_vertices;
 
@@ -252,8 +254,8 @@ auto CtintWalker<linalg::CPU, Parameters, Scalar>::insertionProbability(const in
   //      configuration_.getStrength(old_size), combinatorial_factor, details::VERTEX_INSERTION);
 }
 
-template <class Parameters, class Scalar>
-auto CtintWalker<linalg::CPU, Parameters, Scalar>::removalProbability() -> Scalar {
+  template <class Parameters, class Scalar, DistType DIST>>
+  auto CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::removalProbability() -> Scalar {
   std::array<double, 3> removal_rngs;
   for (unsigned i = 0; i < n_removal_rngs_; ++i)
     removal_rngs[i] = rng_();
@@ -295,8 +297,8 @@ auto CtintWalker<linalg::CPU, Parameters, Scalar>::removalProbability() -> Scala
   return det_ratio * combinatorial_factor / strength_factor;
 }
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::applyInsertion(const MatrixPair& Sp,
+template <class Parameters, class Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::applyInsertion(const MatrixPair& Sp,
                                                                   const MatrixPair& Qp,
                                                                   const MatrixPair& Rp) {
   for (int s = 0; s < 2; ++s) {
@@ -305,7 +307,7 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::applyInsertion(const MatrixPa
       continue;
     // update M matrix.
     const auto& R = Rp[s];
-    const auto S = linalg::makeConstantView(Sp[s]);
+    const ConstView S(Sp[s]);
     auto& M = M_[s];
     const auto& M_Q = M_Q_[s];
     const int m_size = M.nrCols();
@@ -313,7 +315,7 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::applyInsertion(const MatrixPa
     if (not m_size) {
       M.resizeNoCopy(delta);
       auto M_view = MatrixView(M);
-      smallInverse(*S, M_view, s);
+      smallInverse(S, M_view, s);
       continue;
     }
 
@@ -324,7 +326,7 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::applyInsertion(const MatrixPa
     M.resize(m_size + delta);
     //  S_tilde = S^-1.
     MatrixView S_tilde(M, m_size, m_size, delta, delta);
-    smallInverse(*S, S_tilde, s);
+    smallInverse(S, S_tilde, s);
 
     // R_tilde = - S * R * M
     MatrixView R_tilde(M, m_size, 0, delta, m_size);
@@ -344,8 +346,8 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::applyInsertion(const MatrixPa
     configuration_.commitInsertion(configuration_.size() - delta_vertices + i);
 }
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::applyRemoval() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::applyRemoval() {
   for (auto idx : removal_list_)
     configuration_.markForRemoval(idx);
 
@@ -386,8 +388,8 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::applyRemoval() {
   }
 }
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::popBack(int delta_vertices) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::popBack(int delta_vertices) {
   for (int i = configuration_.size() - delta_vertices; i < configuration_.size(); ++i) {
     removal_list_.push_back(i);
   }
@@ -399,8 +401,8 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::popBack(int delta_vertices) {
   }
 }
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::moveRemovalToEnd() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::moveRemovalToEnd() {
   configuration_.moveAndShrink(matrix_source_list_, matrix_removal_list_, removal_list_);
 
   for (int s = 0; s < 2; ++s) {
@@ -409,18 +411,18 @@ void CtintWalker<linalg::CPU, Parameters, Scalar>::moveRemovalToEnd() {
   }
 }
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::smallInverse(const MatrixView& in,
-                                                                MatrixView& out, const int s) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::smallInverse(const ConstView& in, MatrixView& out,
+                                                              const int s) {
   details::smallInverse(in, out, det_ratio_[s], ipiv_, v_work_);
 }
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::smallInverse(MatrixView& in_out, const int s) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::smallInverse(MatrixView& in_out, const int s) {
   details::smallInverse(in_out, det_ratio_[s], ipiv_, v_work_);
 }
 
-template <class Parameters, class Scalar>
-void CtintWalker<linalg::CPU, Parameters, Scalar>::initializeStep() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalker<linalg::CPU, Parameters, Scalar, DIST>::initializeStep() {
   removal_list_.clear();
   for (int s = 0; s < 2; ++s) {
     matrix_removal_list_[s].clear();

@@ -15,6 +15,7 @@
 #include "gtest/gtest.h"
 
 #include "dca/function/function.hpp"
+#include "dca/function/util/difference.hpp"
 #include "dca/io/hdf5/hdf5_reader.hpp"
 #include "dca/io/json/json_reader.hpp"
 #include "dca/math/random/std_random_wrapper.hpp"
@@ -93,10 +94,8 @@ TEST(dca_sp_DCAplus_mpi, Self_energy) {
       reader.close_file();
 
       // Compare the computed self-energy with the expected result.
-      for (int i = 0; i < Sigma_check.size(); ++i) {
-        EXPECT_NEAR(Sigma_check(i).real(), dca_data.Sigma(i).real(), 1e-10);
-        EXPECT_NEAR(Sigma_check(i).imag(), dca_data.Sigma(i).imag(), 1e-10);
-      }
+      const auto err = dca::func::util::difference(Sigma_check, dca_data.Sigma);
+      EXPECT_LE(err.l_inf, 1e-10);
     }
     else {
       //  Write results

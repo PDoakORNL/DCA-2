@@ -26,35 +26,37 @@ namespace ctint {
 // dca::phys::solver::ctint::
 
 namespace {
-template <linalg::DeviceType device, class Parameters, bool use_submatrix, typename Scalar>
+
+template <linalg::DeviceType device, class Parameters, bool use_submatrix, typename Scalar, DistType DIST>
 struct CtintWalkerChoicheSelector;
 
-template <class Parameters, typename Scalar>
-struct CtintWalkerChoicheSelector<linalg::CPU, Parameters, true, Scalar> {
-  using type = CtintWalkerSubmatrixCpu<Parameters, Scalar>;
+template <class Parameters, typename Scalar, DistType DIST>
+struct CtintWalkerChoicheSelector<linalg::CPU, Parameters, true, Scalar, DIST> {
+  using type = CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>;
 };
-template <class Parameters, typename Scalar>
-struct CtintWalkerChoicheSelector<linalg::CPU, Parameters, false, Scalar> {
-  using type = CtintWalker<linalg::CPU, Parameters, Scalar>;
+template <class Parameters, typename Scalar, DistType DIST>
+struct CtintWalkerChoicheSelector<linalg::CPU, Parameters, false, Scalar, DIST> {
+  using type = CtintWalker<linalg::CPU, Parameters, Scalar, DIST>;
 };
 
 #ifdef DCA_HAVE_CUDA
-template <class Parameters, typename Scalar>
-struct CtintWalkerChoicheSelector<linalg::GPU, Parameters, true, Scalar> {
-  using type = CtintWalkerSubmatrixGpu<Parameters, Scalar>;
+template <class Parameters, typename Scalar, DistType DIST>
+struct CtintWalkerChoicheSelector<linalg::GPU, Parameters, true, Scalar, DIST> {
+  using type = CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>;
 };
 
-template <class Parameters, typename Scalar>
-struct CtintWalkerChoicheSelector<linalg::GPU, Parameters, false, Scalar> {
+template <class Parameters, typename Scalar, DistType DIST>
+struct CtintWalkerChoicheSelector<linalg::GPU, Parameters, false, Scalar, DIST> {
+
   // There is only a submatrix implementation of the GPU walker.
 };
 #endif  // DCA_HAVE_CUDA
 
 }  // namespace
 
-template <linalg::DeviceType device_t, class Parameters, bool use_submatrix, typename Scalar>
+template <linalg::DeviceType device_t, class Parameters, bool use_submatrix, typename Scalar, DistType DIST = DistType::NONE>
 using CtintWalkerChoice =
-    typename CtintWalkerChoicheSelector<device_t, Parameters, use_submatrix, Scalar>::type;
+    typename CtintWalkerChoicheSelector<device_t, Parameters, use_submatrix, Scalar, DIST>::type;
 
 }  // namespace ctint
 }  // namespace solver

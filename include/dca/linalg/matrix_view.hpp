@@ -25,27 +25,42 @@ namespace dca {
 namespace linalg {
 // dca::linalg::
 
-template <typename ScalarType, DeviceType device_name = linalg::CPU>
+template <class Scalar, DeviceType device_name = linalg::CPU>
 class MatrixView {
 public:
-  using ValueType = ScalarType;
+  using ValueType = Scalar;
   constexpr static DeviceType device = device_name;
 
   using Pair = std::pair<int, int>;
-  MatrixView(ScalarType* data, Pair size);
-  MatrixView(ScalarType* data, Pair size, int ld);
-  MatrixView(ScalarType* data, int size, int ld);
-  MatrixView(ScalarType* data, int size);
-  template <template <typename, DeviceType> class Matrix>
-  MatrixView(Matrix<ScalarType, device_name>& mat);
-  template <template <typename, DeviceType> class Matrix>
-  MatrixView(Matrix<ScalarType, device_name>& mat, int offset_i, int offset_j);
-  template <template <typename, DeviceType> class Matrix>
-  MatrixView(Matrix<ScalarType, device_name>& mat, int offset_i, int offset_j, int ni, int nj);
+  MatrixView(Scalar* data, Pair size);
+  MatrixView(Scalar* data, Pair size, int ld);
+  MatrixView(Scalar* data, int size, int ld);
+  MatrixView(Scalar* data, int size);
 
   template <template <class, DeviceType> class Matrix, class Scalar2>
   MatrixView& operator=(const Matrix<Scalar2, device>& rhs);
   // override default operator=.
+  template <template <class, DeviceType> class Matrix>
+  MatrixView(Matrix<Scalar, device_name>& mat);
+  template <template <class, DeviceType> class Matrix>
+  MatrixView(const Matrix<std::remove_cv_t<Scalar>, device_name>& mat);
+  template <template <class, DeviceType> class Matrix>
+  MatrixView(Matrix<Scalar, device_name>& mat, int offset_i, int offset_j);
+  template <template <class, DeviceType> class Matrix>
+  MatrixView(const Matrix<std::remove_cv_t<Scalar>, device_name>& mat, int offset_i, int offset_j);
+  template <template <class, DeviceType> class Matrix>
+  MatrixView(Matrix<Scalar, device_name>& mat, int offset_i, int offset_j, int ni, int nj);
+  template <template <class, DeviceType> class Matrix>
+  MatrixView(const Matrix<std::remove_cv_t<Scalar>, device_name>& mat, int offset_i, int offset_j,
+             int ni, int nj);
+
+  // Preconditions: Device is CPU.
+  //                Assignment from Scalar2 to Scalar is defined.
+  //                Size must be equal to rhs' size.
+  template <template <class, DeviceType> class Matrix, class Scalar2>
+  MatrixView& operator=(const Matrix<Scalar2, device_name>& rhs);
+
+  // Same as above, necessary to override default operator=.
   MatrixView& operator=(const MatrixView& rhs);
 
   void print(std::ostream& out = std::cout) const;
@@ -60,18 +75,18 @@ public:
   __DEVICE__ __HOST__ std::pair<int, int> size() const {
     return size_;
   }
-  __DEVICE__ __HOST__ ScalarType* ptr() {
+  __DEVICE__ __HOST__ Scalar* ptr() {
     return ptr_;
   }
-  __DEVICE__ __HOST__ const ScalarType* ptr() const {
+  __DEVICE__ __HOST__ const Scalar* ptr() const {
     return ptr_;
   }
-  __DEVICE__ __HOST__ ScalarType* ptr(int i, int j) {
+  __DEVICE__ __HOST__ Scalar* ptr(int i, int j) {
     assert(0 <= i && i <= size_.first);
     assert(0 <= j && j <= size_.second);
     return ptr_ + leadingDimension() * j + i;
   }
-  __DEVICE__ __HOST__ const ScalarType* ptr(int i, int j) const {
+  __DEVICE__ __HOST__ const Scalar* ptr(int i, int j) const {
     assert(0 <= i && i <= size_.first);
     assert(0 <= j && j <= size_.second);
     return ptr_ + leadingDimension() * j + i;
@@ -85,68 +100,87 @@ public:
   bool is_square() const {
     return size_.first == size_.second;
   }
-  __DEVICE__ __HOST__ ScalarType& operator()(int i, int j) {
+  __DEVICE__ __HOST__ Scalar& operator()(int i, int j) {
     assert(0 <= i && i < size_.first);
     assert(0 <= j && j < size_.second);
     return ptr_[i + j * ldm_];
   }
-  __DEVICE__ __HOST__ const ScalarType& operator()(int i, int j) const {
+  __DEVICE__ __HOST__ const Scalar& operator()(int i, int j) const {
     assert(0 <= i && i < size_.first);
     assert(0 <= j && j < size_.second);
     return ptr_[i + j * ldm_];
   }
 
 private:
-  ScalarType* const ptr_;
+  Scalar* const ptr_;
   const int ldm_;
   const std::pair<int, int> size_;
 };
 
-template <typename ScalarType, DeviceType device_t>
-MatrixView<ScalarType, device_t>::MatrixView(ScalarType* const data, const Pair size)
+template <class Scalar, DeviceType device_t>
+MatrixView<Scalar, device_t>::MatrixView(Scalar* const data, const Pair size)
     : MatrixView(data, size, size.first) {}
 
-template <typename ScalarType, DeviceType device_t>
-MatrixView<ScalarType, device_t>::MatrixView(ScalarType* const data, const Pair size, const int ld)
+template <class Scalar, DeviceType device_t>
+MatrixView<Scalar, device_t>::MatrixView(Scalar* const data, const Pair size, const int ld)
     : ptr_(data), ldm_(ld), size_(size) {}
 
-template <typename ScalarType, DeviceType device_t>
-MatrixView<ScalarType, device_t>::MatrixView(ScalarType* const data, const int size, const int ld)
+template <class Scalar, DeviceType device_t>
+MatrixView<Scalar, device_t>::MatrixView(Scalar* const data, const int size, const int ld)
     : ptr_(data), ldm_(ld), size_(std::make_pair(size, size)) {}
 
-template <typename ScalarType, DeviceType device_t>
-MatrixView<ScalarType, device_t>::MatrixView(ScalarType* const data, const int size)
+template <class Scalar, DeviceType device_t>
+MatrixView<Scalar, device_t>::MatrixView(Scalar* const data, const int size)
     : ptr_(data), ldm_(size), size_(std::make_pair(size, size)) {}
 
-template <typename ScalarType, DeviceType device_t>
-template <template <typename, DeviceType> class Matrix>
-MatrixView<ScalarType, device_t>::MatrixView(Matrix<ScalarType, device_t>& mat)
+template <class Scalar, DeviceType device_t>
+template <template <class, DeviceType> class Matrix>
+MatrixView<Scalar, device_t>::MatrixView(Matrix<Scalar, device_t>& mat)
     : ptr_(mat.ptr()), ldm_(mat.leadingDimension()), size_(mat.size()) {}
 
-template <typename ScalarType, DeviceType device_t>
-template <template <typename, DeviceType> class Matrix>
-MatrixView<ScalarType, device_t>::MatrixView(Matrix<ScalarType, device_t>& mat, int offset_i,
-                                             int offset_j)
+template <class Scalar, DeviceType device_t>
+template <template <class, DeviceType> class Matrix>
+MatrixView<Scalar, device_t>::MatrixView(const Matrix<std::remove_cv_t<Scalar>, device_t>& mat)
+    : ptr_(mat.ptr()), ldm_(mat.leadingDimension()), size_(mat.size()) {}
+
+template <class Scalar, DeviceType device_t>
+template <template <class, DeviceType> class Matrix>
+MatrixView<Scalar, device_t>::MatrixView(Matrix<Scalar, device_t>& mat, int offset_i, int offset_j)
+    : MatrixView(mat, offset_i, offset_j, mat.nrRows() - offset_i, mat.nrCols() - offset_j) {
+  assert(offset_i < mat.nrCols());
+  assert(offset_j < mat.nrRows());
+}
+template <class Scalar, DeviceType device_t>
+template <template <class, DeviceType> class Matrix>
+MatrixView<Scalar, device_t>::MatrixView(const Matrix<std::remove_cv_t<Scalar>, device_t>& mat,
+                                         int offset_i, int offset_j)
     : MatrixView(mat, offset_i, offset_j, mat.nrRows() - offset_i, mat.nrCols() - offset_j) {
   assert(offset_i < mat.nrCols());
   assert(offset_j < mat.nrRows());
 }
 
-template <typename ScalarType, DeviceType device_t>
-template <template <typename, DeviceType> class Matrix>
-MatrixView<ScalarType, device_t>::MatrixView(Matrix<ScalarType, device_t>& mat, int offset_i,
-                                             int offset_j, int ni, int nj)
+template <class Scalar, DeviceType device_t>
+template <template <class, DeviceType> class Matrix>
+MatrixView<Scalar, device_t>::MatrixView(Matrix<Scalar, device_t>& mat, int offset_i, int offset_j,
+                                         int ni, int nj)
+    : ptr_(mat.ptr(offset_i, offset_j)), ldm_(mat.leadingDimension()), size_(std::make_pair(ni, nj)) {
+  assert(ni + offset_i <= mat.nrRows());
+  assert(nj + offset_j <= mat.nrCols());
+}
+template <class Scalar, DeviceType device_t>
+template <template <class, DeviceType> class Matrix>
+MatrixView<Scalar, device_t>::MatrixView(const Matrix<std::remove_cv_t<Scalar>, device_t>& mat,
+                                         int offset_i, int offset_j, int ni, int nj)
     : ptr_(mat.ptr(offset_i, offset_j)), ldm_(mat.leadingDimension()), size_(std::make_pair(ni, nj)) {
   assert(ni + offset_i <= mat.nrRows());
   assert(nj + offset_j <= mat.nrCols());
 }
 
-template <typename ScalarType, DeviceType device>
+template <class Scalar, DeviceType device_t>
 template <template <class, DeviceType> class Matrix, class Scalar2>
-MatrixView<ScalarType, device>& MatrixView<ScalarType, device>::operator=(
-    const Matrix<Scalar2, device>& rhs) {
-  static_assert(device == CPU, "Assignment not defined on GPU");
-
+MatrixView<Scalar, device_t>& MatrixView<Scalar, device_t>::operator=(
+    const Matrix<Scalar2, device_t>& rhs) {
+  static_assert(device_t == CPU, "Assignment not defined on GPU");
   if (nrCols() != rhs.nrCols() || nrRows() != rhs.nrRows()) {
     throw(std::invalid_argument("Matrix size mismatch."));
   }
@@ -157,10 +191,9 @@ MatrixView<ScalarType, device>& MatrixView<ScalarType, device>::operator=(
   return *this;
 }
 
-template <typename ScalarType, DeviceType device>
-MatrixView<ScalarType, device>& MatrixView<ScalarType, device>::operator=(const MatrixView& rhs) {
-  static_assert(device == CPU, "Assignment not defined on GPU");
-
+template <class Scalar, DeviceType device_t>
+MatrixView<Scalar, device_t>& MatrixView<Scalar, device_t>::operator=(const MatrixView& rhs) {
+  static_assert(device_t == CPU, "Assignment not defined on GPU");
   if (nrCols() != rhs.nrCols() || nrRows() != rhs.nrRows()) {
     throw(std::invalid_argument("Matrix size mismatch."));
   }
@@ -171,8 +204,8 @@ MatrixView<ScalarType, device>& MatrixView<ScalarType, device>::operator=(const 
   return *this;
 }
 
-template <typename ScalarType, DeviceType device_t>
-void MatrixView<ScalarType, device_t>::print(std::ostream& out) const {
+template <class Scalar, DeviceType device_t>
+void MatrixView<Scalar, device_t>::print(std::ostream& out) const {
   out << "\tMatrix view:\n";
   out << "Size: \t" << size_.first << ", " << size_.second << "\n";
 
@@ -182,47 +215,6 @@ void MatrixView<ScalarType, device_t>::print(std::ostream& out) const {
     out << "\n";
   }
   out << "\n" << std::endl;
-}
-
-// Methods for returning a pointer to constant matrix view from non const arguments
-template <typename ScalarType, DeviceType device_t>
-auto inline makeConstantView(const ScalarType* data, const std::pair<int, int> size, const int ld) {
-  return std::make_unique<const MatrixView<ScalarType, device_t>>(const_cast<ScalarType*>(data),
-                                                                  size, ld);
-}
-
-template <typename ScalarType, DeviceType device_t>
-auto inline makeConstantView(ScalarType* const data, const int size, const int ld) {
-  return makeConstantView<ScalarType, device_t>(data, std::make_pair(size, size), ld);
-}
-
-template <typename ScalarType, DeviceType device_t>
-auto inline makeConstantView(ScalarType* const data, const int size) {
-  return makeConstantView<ScalarType, device_t>(data, std::make_pair(size, size), size);
-}
-
-template <template <typename, DeviceType> class Matrix, typename ScalarType, DeviceType device_t>
-auto inline makeConstantView(const Matrix<ScalarType, device_t>& mat) {
-  return makeConstantView<ScalarType, device_t>(mat.ptr(), mat.size(), mat.leadingDimension());
-}
-
-template <template <typename, DeviceType> class Matrix, typename ScalarType, DeviceType device_t>
-auto inline makeConstantView(const Matrix<ScalarType, device_t>& mat, const int offset_i,
-                             const int offset_j) {
-  assert(offset_i < mat.nrCols());
-  assert(offset_j < mat.nrRows());
-  return makeConstantView<ScalarType, device_t>(
-      mat.ptr(offset_i, offset_j), std::make_pair(mat.nrRows() - offset_i, mat.nrCols() - offset_j),
-      mat.leadingDimension());
-}
-
-template <template <typename, DeviceType> class Matrix, typename ScalarType, DeviceType device_t>
-auto inline makeConstantView(const Matrix<ScalarType, device_t>& mat, const int offset_i,
-                             const int offset_j, const int ni, const int nj) {
-  assert(ni + offset_i <= mat.nrRows());
-  assert(nj + offset_j <= mat.nrCols());
-  return makeConstantView<ScalarType, device_t>(mat.ptr(offset_i, offset_j), std::make_pair(ni, nj),
-                                                mat.leadingDimension());
 }
 
 }  // namespace linalg

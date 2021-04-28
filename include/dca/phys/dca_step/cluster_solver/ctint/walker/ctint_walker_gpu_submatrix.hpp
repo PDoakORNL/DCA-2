@@ -35,12 +35,12 @@ namespace ctint {
 using dca::linalg::MatrixView;
 using dca::linalg::GPU;
 
-template <class Parameters, typename Scalar>
-class CtintWalkerSubmatrixGpu : public CtintWalkerSubmatrixCpu<Parameters, Scalar> {
+template <class Parameters, typename Scalar, DistType DIST>
+class CtintWalkerSubmatrixGpu : public CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST> {
 public:
-  using this_type = CtintWalkerSubmatrixGpu<Parameters, Scalar>;
-  using BaseClass = CtintWalkerSubmatrixCpu<Parameters, Scalar>;
-  using RootClass = CtintWalkerBase<Parameters, Scalar>;
+  using this_type = CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>;
+  using BaseClass = CtintWalkerSubmatrixCpu<Parameters, Scalar, DIST>;
+  using RootClass = CtintWalkerBase<Parameters, Scalar, DIST>;
 
   using typename BaseClass::Data;
   using typename BaseClass::Profiler;
@@ -129,48 +129,47 @@ private:
   std::array<linalg::util::CudaEvent, 2> config_copied_;
 };
 
-template <class Parameters, typename Scalar>
-CtintWalkerSubmatrixGpu<Parameters, Scalar>::CtintWalkerSubmatrixGpu(const Parameters& pars_ref,
-                                                                     const Data& data, Rng& rng_ref,
-                                                                     int id)
+template <class Parameters, typename Scalar, DistType DIST>
+CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::CtintWalkerSubmatrixGpu(
+    const Parameters& pars_ref, const Data& data, Rng& rng_ref, int id)
     : BaseClass(pars_ref, data, rng_ref, id) {
   if (concurrency_.id() == concurrency_.first() && thread_id_ == 0)
     std::cout << "\nCT-INT submatrix walker extended to GPU." << std::endl;
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::setMFromConfig() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::setMFromConfig() {
   BaseClass::setMFromConfig();
   for (int s = 0; s < 2; ++s) {
     M_dev_[s].setAsync(M_[s], get_stream(s));
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::synchronize() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::synchronize() {
   Profiler profiler(__FUNCTION__, "CT-INT GPU walker", __LINE__, thread_id_);
 
   cudaStreamSynchronize(get_stream(0));
   cudaStreamSynchronize(get_stream(1));
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::doSweep() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::doSweep() {
   Profiler profiler(__FUNCTION__, "CT-INT GPU walker", __LINE__, thread_id_);
 
   BaseClass::doSteps();
   uploadConfiguration();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::doStep(const int n_moves_to_delay) {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::doStep(const int n_moves_to_delay) {
   BaseClass::nbr_of_moves_to_delay_ = n_moves_to_delay;
   doStep();
   uploadConfiguration();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::doStep() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::doStep() {
   BaseClass::generateDelayedMoves(BaseClass::nbr_of_moves_to_delay_);
   uploadConfiguration();
 
@@ -181,8 +180,8 @@ void CtintWalkerSubmatrixGpu<Parameters, Scalar>::doStep() {
   updateM();
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::uploadConfiguration() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::uploadConfiguration() {
   for (int s = 0; s < 2; ++s)
     config_copied_[s].block();
 
@@ -204,8 +203,8 @@ void CtintWalkerSubmatrixGpu<Parameters, Scalar>::uploadConfiguration() {
     config_copied_[s].record(get_stream(s));
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::computeMInit() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::computeMInit() {
   //  Profiler profiler(__FUNCTION__, "CT-INT GPU walker", __LINE__, thread_id_);
 
   for (int s = 0; s < 2; ++s)
@@ -235,8 +234,8 @@ void CtintWalkerSubmatrixGpu<Parameters, Scalar>::computeMInit() {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::computeGInit() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::computeGInit() {
   //  Profiler profiler(__FUNCTION__, "CT-INT GPU walker", __LINE__, thread_id_);
 
   for (int s = 0; s < 2; ++s) {
@@ -263,8 +262,8 @@ void CtintWalkerSubmatrixGpu<Parameters, Scalar>::computeGInit() {
   }
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::updateM() {
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::updateM() {
   //  Profiler profiler(__FUNCTION__, "CT-INT GPU walker", __LINE__, thread_id_);
 
   for (int s = 0; s < 2; ++s)
@@ -326,8 +325,8 @@ void CtintWalkerSubmatrixGpu<Parameters, Scalar>::updateM() {
   assert(configuration_.getSector(1).size() == M_dev_[1].nrRows());
 }
 
-template <class Parameters, typename Scalar>
-void CtintWalkerSubmatrixGpu<Parameters, Scalar>::computeM(
+template <class Parameters, typename Scalar, DistType DIST>
+void CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::computeM(
     std::array<dca::linalg::Matrix<Scalar, linalg::GPU>, 2>& m_accum) {
   for (int s = 0; s < 2; ++s)
     m_accum[s].resizeNoCopy(M_dev_[s].size());
@@ -343,8 +342,8 @@ void CtintWalkerSubmatrixGpu<Parameters, Scalar>::computeM(
   config_copied_[1].block();
 }
 
-template <class Parameters, typename Scalar>
-std::size_t CtintWalkerSubmatrixGpu<Parameters, Scalar>::deviceFingerprint() const {
+template <class Parameters, typename Scalar, DistType DIST>
+std::size_t CtintWalkerSubmatrixGpu<Parameters, Scalar, DIST>::deviceFingerprint() const {
   std::size_t res = 0;
   for (int s = 0; s < 2; ++s) {
     res += M_dev_[s].deviceFingerprint();

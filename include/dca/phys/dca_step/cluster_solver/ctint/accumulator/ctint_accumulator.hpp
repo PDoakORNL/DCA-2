@@ -21,7 +21,7 @@
 #include "dca/phys/dca_step/cluster_solver/ctint/structs/ct_int_matrix_configuration.hpp"
 #include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/mc_accumulator_data.hpp"
 #include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/sp/sp_accumulator.hpp"
-#include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/tp/tp_accumulator.hpp"
+#include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/tp/tp_accumulator_cpu.hpp"
 #include "dca/phys/dca_step/cluster_solver/shared_tools/util/accumulator.hpp"
 
 #ifdef DCA_HAVE_CUDA
@@ -35,14 +35,13 @@ namespace solver {
 namespace ctint {
 // dca::phys::solver::ctint::
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
-class CtintAccumulator : MC_accumulator_data<Scalar> {
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST = dca::DistType::NONE>
+    class CtintAccumulator : MC_accumulator_data<Scalar> {
 public:
   using BaseClass = MC_accumulator_data<Scalar>;
-
-  using this_type = CtintAccumulator<Parameters, Scalar, device>;
+  using this_type = CtintAccumulator<Parameters, device, Scalar, DIST>;
   using ParametersType = Parameters;
-  using DataType = phys::DcaData<Parameters>;
+  using DataType = phys::DcaData<Parameters, DIST>;
 
   using Real = dca::util::Real<Scalar>;
 
@@ -90,7 +89,7 @@ public:
   }
 
   static std::size_t staticDeviceFingerprint() {
-    return accumulator::TpAccumulator<Parameters, device>::staticDeviceFingerprint();
+    return accumulator::TpAccumulator<Parameters, DIST, device>::staticDeviceFingerprint();
   }
 
   float getFLOPs() const {
@@ -114,8 +113,8 @@ private:
 
   const int thread_id_;
 
-  accumulator::SpAccumulator<Parameters, device> sp_accumulator_;
-  accumulator::TpAccumulator<Parameters, device> tp_accumulator_;
+  accumulator::SpAccumulator<Parameters, device, Real> sp_accumulator_;
+  accumulator::TpAccumulator<Parameters, DIST, device> tp_accumulator_;
 
   bool perform_tp_accumulation_ = false;
   bool ready_ = false;
@@ -124,10 +123,10 @@ private:
   float flop_ = 0.;
 };
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
 template <class Data>
-CtintAccumulator<Parameters, Scalar, device>::CtintAccumulator(const Parameters& pars,
-                                                               const Data& data, int id)
+CtintAccumulator<Parameters, device, Scalar, DIST>::CtintAccumulator(const Parameters& pars, const Data& data,
+                                                       int id)
     : parameters_(pars),
       thread_id_(id),
       sp_accumulator_(pars),
@@ -137,8 +136,8 @@ CtintAccumulator<Parameters, Scalar, device>::CtintAccumulator(const Parameters&
   streams_.push_back(tp_accumulator_.get_stream());
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
-void CtintAccumulator<Parameters, Scalar, device>::initialize(const int dca_iteration) {
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
+void CtintAccumulator<Parameters, device, Real, DIST>::initialize(const int dca_iteration) {
   perform_tp_accumulation_ =
       parameters_.isAccumulatingG4() && dca_iteration == parameters_.get_dca_iterations() - 1;
 
@@ -151,9 +150,9 @@ void CtintAccumulator<Parameters, Scalar, device>::initialize(const int dca_iter
   finalized_ = false;
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
 template <class Walker>
-void CtintAccumulator<Parameters, Scalar, device>::updateFrom(Walker& walker) {
+void CtintAccumulator<Parameters, device, Scalar, DIST>::updateFrom(Walker& walker) {
   // Compute M.
   walker.computeM(M_);
 
@@ -174,16 +173,16 @@ void CtintAccumulator<Parameters, Scalar, device>::updateFrom(Walker& walker) {
   ready_ = true;
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
 template <class Walker>
-void CtintAccumulator<Parameters, Scalar, device>::accumulate(Walker& walker) {
+void CtintAccumulator<Parameters, device, Scalar, DIST>::accumulate(Walker& walker) {
   updateFrom(walker);
   measure();
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
-void CtintAccumulator<Parameters, Scalar, device>::measure() {
-  if (!ready_ || current_sign_.isNull())
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
+void CtintAccumulator<Parameters, device, Scalar, DIST>::measure() {
+  if (!ready_ || sign_ == 0)
     throw(std::logic_error("No or invalid configuration to accumulate."));
 
   accumulated_sign_ += current_sign_.getSign();
@@ -197,8 +196,8 @@ void CtintAccumulator<Parameters, Scalar, device>::measure() {
   ready_ = false;
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
-void CtintAccumulator<Parameters, Scalar, device>::sumTo(this_type& other_one) {
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
+void CtintAccumulator<Parameters, device, Scalar, DIST>::sumTo(this_type& other_one) {
   other_one.accumulated_order_ += accumulated_order_;
   other_one.accumulated_sign_ += accumulated_sign_;
 
@@ -210,8 +209,8 @@ void CtintAccumulator<Parameters, Scalar, device>::sumTo(this_type& other_one) {
   other_one.flop_ += flop_;
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
-void CtintAccumulator<Parameters, Scalar, device>::finalize() {
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
+void CtintAccumulator<Parameters, device, Scalar, DIST>::finalize() {
   if (finalized_)
     return;
 
@@ -222,16 +221,16 @@ void CtintAccumulator<Parameters, Scalar, device>::finalize() {
   finalized_ = true;
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
-const auto& CtintAccumulator<Parameters, Scalar, device>::get_sign_times_M_r_w() const {
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
+const auto& CtintAccumulator<Parameters, device, Scalar, DIST>::get_sign_times_M_r_w() const {
   return sp_accumulator_.get_sign_times_M_r_w();
 }
 
-template <class Parameters, typename Scalar, linalg::DeviceType device>
-const auto& CtintAccumulator<Parameters, Scalar, device>::get_sign_times_G4() const {
+template <class Parameters, linalg::DeviceType device, typename Scalar, DistType DIST>
+const auto& CtintAccumulator<Parameters, device, Scalar, DIST>::get_sign_times_G4() const {
   if (!perform_tp_accumulation_)
     throw(std::logic_error("G4 was not accumulated."));
-  return tp_accumulator_.get_sign_times_G4();
+  return tp_accumulator_.get_G4();
 }
 
 }  // namespace ctint
