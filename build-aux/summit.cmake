@@ -34,6 +34,8 @@ set(CMAKE_CUDA_ARCHITECTURES 70 CACHE STRING "GPU Hardware Architecture.")
 
 # Summit's static CUDA runtime is bugged.
 option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+# Enable adios2 support 
+option(DCA_WITH_ADIOS2 ON)
 
 set(MAGMA_DIR "/gpfs/alpine/proj-shared/cph102/epd/magma_cuda11" CACHE PATH
   "Path to the MAGMA installation directory. Hint for CMake to find MAGMA.")
