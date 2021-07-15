@@ -72,7 +72,16 @@ public:
   using SDmn = func::dmn_0<domains::electron_spin_domain>;
   using NuDmn = func::dmn_variadic<BDmn, SDmn>;  // orbital-spin index
 
+  //using KDmn = func::dmn<4, std::vector<double>>;
+
 protected:
+  template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+  static void execute(
+       	func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
+	func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff);
+#warning("being read")
+
+
   template <class Lattice, typename scalartype, typename nu_dmn_t, typename f_dmn_0, typename f_dmn_1>
   static void execute(
       func::function<scalartype, func::dmn_variadic<nu_dmn_t, nu_dmn_t, f_dmn_0, f_dmn_1>>& f,

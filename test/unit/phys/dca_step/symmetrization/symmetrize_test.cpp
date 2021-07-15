@@ -75,6 +75,14 @@ protected:
   function<int, dmn_variadic<NuDmn, NuDmn>> H_symmetry_;
 };
 
+TEST_F(SymmetrizeTest, H0_){
+  // Test the symmetrization.
+  dca::phys::symmetrize:: execute<Lattice>(H0_, true);
+
+  EXPECT_FALSE(dca::phys::symmetrize::differenceDetected());
+
+}
+
 TEST_F(SymmetrizeTest, G0_t) {
   // Compute the Green's functions in imaginary time.
   function<std::complex<double>, dmn_variadic<NuDmn, NuDmn, KClusterDmn, TDmn>> G0_k_t;
