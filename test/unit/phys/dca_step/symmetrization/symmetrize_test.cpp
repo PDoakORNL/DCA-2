@@ -77,7 +77,7 @@ protected:
 
 TEST_F(SymmetrizeTest, H0_){
   // Test the symmetrization.
-  dca::phys::symmetrize:: execute<Lattice>(H0_, true);
+  //  dca::phys::symmetrize:: execute<Lattice>(H0_, true);
 
   EXPECT_FALSE(dca::phys::symmetrize::differenceDetected());
 

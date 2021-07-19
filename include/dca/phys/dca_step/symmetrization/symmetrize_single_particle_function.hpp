@@ -75,6 +75,8 @@ public:
   //using KDmn = func::dmn<4, std::vector<double>>;
 
 protected:
+  /** Check the symmetry of H0_
+   */
   template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
   static void execute(
        	func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
@@ -204,13 +206,22 @@ private:
 
 bool symmetrize_single_particle_function::difference_detected_ = false;
 
+
+template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+  static void execute(
+       	func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
+	func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff)
+{
+}
+
+  
 template <class Lattice, typename scalartype, typename nu_dmn_t, typename f_dmn_0, typename f_dmn_1>
 void symmetrize_single_particle_function::execute(
     func::function<scalartype, func::dmn_variadic<nu_dmn_t, nu_dmn_t, f_dmn_0, f_dmn_1>>& f,
     func::function<int, func::dmn_variadic<nu_dmn_t, nu_dmn_t>>& /*H_symmetry*/, bool do_diff) {
   execute<Lattice>(f, do_diff);
 }
-
+  
 template <typename scalartype, typename f_dmn_0, typename f_dmn_1>
 void symmetrize_single_particle_function::execute(
     func::function<scalartype, func::dmn_variadic<BDmn, BDmn, f_dmn_0, f_dmn_1>>& f, bool do_diff) {

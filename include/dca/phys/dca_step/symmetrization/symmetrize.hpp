@@ -104,13 +104,13 @@ void symmetrize::execute(func::function<std::complex<double>, func::dmn_variadic
   symmetrize_single_particle_function::execute<Lattice>(H0_,true);
 }
 */
-template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
-  static void execute(
-        func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
-        func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff)
-{
-	symmetrize_single_particle_function::execute<Lattice>(H0_,true);
-}
+// template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+//   static void symmetrize::execute(
+//         func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
+//         func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff)
+// {
+// 	symmetrize_single_particle_function::execute<Lattice>(H0_,true);
+// }
 
 
 
