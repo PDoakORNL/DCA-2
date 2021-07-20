@@ -42,11 +42,11 @@ public:
   static void execute(func::function<std::complex<double>,
 			func::dmn_variadic<nu, nu, func::dmn_0<k>>> & H0_);
 */
-  template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+  template <class Lattice, typename scalartype, typename scalar_type, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
   static void execute(
-        func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
-        func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff);
-
+        func::function<scalartype, func::dmn_variadic<nu, nu,
+        func::dmn_0<domains::cluster_domain<scalar_type, D, N, domains::MOMENTUM_SPACE, S>>>>& H0, bool do_diff = false);
+  
   template <typename scalartype, typename f_dmn_0>
   static void execute(func::function<scalartype, f_dmn_0>& f, bool do_diff = false);
 
@@ -97,22 +97,14 @@ template <typename scalartype, typename f_dmn_0>
 void symmetrize::execute(func::function<scalartype, f_dmn_0>& f, bool do_diff) {
   symmetrize_single_particle_function::execute(f, do_diff);
 }
-/*
-template <class Lattice, typename scalartype, typename nu, typename k>
-void symmetrize::execute(func::function<std::complex<double>, func::dmn_variadic<nu,nu, func::dmn_0<k>>> & H0_, bool do_diff)
+
+template <class Lattice, typename scalartype, typename scalar_type, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+void symmetrize::execute(
+                         func::function<scalartype, func::dmn_variadic<nu, nu,
+        func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0, bool do_diff)
 {
-  symmetrize_single_particle_function::execute<Lattice>(H0_,true);
+  symmetrize_single_particle_function::execute<Lattice>(H0, do_diff);
 }
-*/
-// template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
-//   static void symmetrize::execute(
-//         func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
-//         func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff)
-// {
-// 	symmetrize_single_particle_function::execute<Lattice>(H0_,true);
-// }
-
-
 
 template <class Lattice, typename scalartype, typename f_dmn_0, typename f_dmn_1>
 void symmetrize::execute(func::function<scalartype, func::dmn_variadic<nu, nu, f_dmn_0, f_dmn_1>>& f,

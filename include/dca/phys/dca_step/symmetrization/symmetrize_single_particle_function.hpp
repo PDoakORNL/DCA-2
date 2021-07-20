@@ -72,37 +72,38 @@ public:
   using SDmn = func::dmn_0<domains::electron_spin_domain>;
   using NuDmn = func::dmn_variadic<BDmn, SDmn>;  // orbital-spin index
 
-  //using KDmn = func::dmn<4, std::vector<double>>;
-
 protected:
   /** Check the symmetry of H0_
    */
-  template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+  template <class Lattice, typename scalartype, typename scalartype2, typename nu_dmn_t, int D,
+            domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
   static void execute(
-       	func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
-	func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff);
-#warning("being read")
+      func::function<scalartype,
+                     func::dmn_variadic<nu_dmn_t, nu_dmn_t,
+                                        func::dmn_0<domains::cluster_domain<
+                                            scalartype2, D, N, domains::MOMENTUM_SPACE, S>>>>& H0_,
+      bool do_diff);
 
-
-  template <class Lattice, typename scalartype, typename nu_dmn_t, typename f_dmn_0, typename f_dmn_1>
+  template <class Lattice, typename scalartype, typename nu_dmn_t,
+            typename f_dmn_0, typename f_dmn_1>
   static void execute(
       func::function<scalartype, func::dmn_variadic<nu_dmn_t, nu_dmn_t, f_dmn_0, f_dmn_1>>& f,
       func::function<int, func::dmn_variadic<nu_dmn_t, nu_dmn_t>>& H_symmetry, bool do_diff = false);
 
-  template <typename scalartype, typename scalar_type, int D, domains::CLUSTER_NAMES N,
+  template <typename scalartype, typename scalartype2, int D, domains::CLUSTER_NAMES N,
             domains::CLUSTER_SHAPE S>
   static void execute(
       func::function<scalartype,
-                     func::dmn_0<domains::cluster_domain<scalar_type, D, N, domains::REAL_SPACE, S>>>& f,
+                     func::dmn_0<domains::cluster_domain<scalartype2, D, N, domains::REAL_SPACE, S>>>& f,
       bool /*do_diff*/ = false) {
     return executeCluster(f);
   }
 
-  template <typename scalartype, typename scalar_type, int D, domains::CLUSTER_NAMES N,
+  template <typename scalartype, typename scalartype2, int D, domains::CLUSTER_NAMES N,
             domains::CLUSTER_SHAPE S>
   static void execute(
       func::function<scalartype,
-                     func::dmn_0<domains::cluster_domain<scalar_type, D, N, domains::MOMENTUM_SPACE, S>>>& f,
+                     func::dmn_0<domains::cluster_domain<scalartype2, D, N, domains::MOMENTUM_SPACE, S>>>& f,
       bool /*do_diff*/ = false) {
     return executeCluster(f);
   }
@@ -115,9 +116,10 @@ protected:
   static void execute(func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn, f_dmn_0>>& f,
                       bool do_diff = false);
 
-  template <class Lattice, typename scalartype, typename f_dmn_0, typename f_dmn_1>
-  static void execute(func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn, f_dmn_0, f_dmn_1>>& f,
-                      bool do_diff = false);
+  template <class Lattice, typename scalartype, typename nu_dmn_t, typename f_dmn_0, typename f_dmn_1>
+  static void execute(
+      func::function<scalartype, func::dmn_variadic<nu_dmn_t, nu_dmn_t, f_dmn_0, f_dmn_1>>& f,
+      bool do_diff);
 
 public:
   static bool differenceDetected() {
@@ -188,14 +190,27 @@ private:
                                                         scalar_type, D, N, domains::REAL_SPACE, S>>>>& f,
       bool do_diff = false);
 
-  template <class Lattice, typename scalartype, typename scalar_type, int D,
+  template <class Lattice, typename scalartype, typename scalar_type, int D, typename nu_dmn_t,
             domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
   static void executeCluster(
       func::function<
           scalartype,
           func::dmn_variadic<
-              BDmn, BDmn,
+              nu_dmn_t, nu_dmn_t,
               func::dmn_0<domains::cluster_domain<scalar_type, D, N, domains::MOMENTUM_SPACE, S>>>>& f,
+      bool do_diff = false);
+
+  /** returns H_symmetry
+   */
+  template <class Lattice, typename scalartype, typename scalar_type, int D, typename nu_dmn_t,
+            domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+  static void executeCluster(
+      func::function<
+          scalartype,
+          func::dmn_variadic<
+              nu_dmn_t, nu_dmn_t,
+              func::dmn_0<domains::cluster_domain<scalar_type, D, N, domains::MOMENTUM_SPACE, S>>>>& f,
+      func::function<int, func::dmn_variadic<nu_dmn_t, nu_dmn_t>>& H_symmetry,
       bool do_diff = false);
 
   template <typename ClusterDmn>
@@ -206,22 +221,25 @@ private:
 
 bool symmetrize_single_particle_function::difference_detected_ = false;
 
-
-template <class Lattice, typename scalartype, typename scalar_type, typename NuDmn, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
-  static void execute(
-       	func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn,
-	func::dmn_0<domains::cluster_domain<scalar_type,D, N, domains::MOMENTUM_SPACE, S>>>>& H0_, bool do_diff)
-{
+template <class Lattice, typename scalartype, typename scalartype2, typename nu_dmn_t, int D,
+          domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
+void symmetrize_single_particle_function::execute(
+    func::function<
+        scalartype,
+        func::dmn_variadic<
+            nu_dmn_t, nu_dmn_t,
+            func::dmn_0<domains::cluster_domain<scalartype2, D, N, domains::MOMENTUM_SPACE, S>>>>& H0_,
+    bool do_diff) {
+  executeCluster<Lattice>(H0_, do_diff);
 }
 
-  
 template <class Lattice, typename scalartype, typename nu_dmn_t, typename f_dmn_0, typename f_dmn_1>
 void symmetrize_single_particle_function::execute(
     func::function<scalartype, func::dmn_variadic<nu_dmn_t, nu_dmn_t, f_dmn_0, f_dmn_1>>& f,
     func::function<int, func::dmn_variadic<nu_dmn_t, nu_dmn_t>>& /*H_symmetry*/, bool do_diff) {
   execute<Lattice>(f, do_diff);
 }
-  
+
 template <typename scalartype, typename f_dmn_0, typename f_dmn_1>
 void symmetrize_single_particle_function::execute(
     func::function<scalartype, func::dmn_variadic<BDmn, BDmn, f_dmn_0, f_dmn_1>>& f, bool do_diff) {
@@ -282,9 +300,10 @@ void symmetrize_single_particle_function::execute(
   }
 }
 
-template <class Lattice, typename scalartype, typename f_dmn_0, typename f_dmn_1>
+template <class Lattice, typename scalartype, typename nu_dmn_t, typename f_dmn_0, typename f_dmn_1>
 void symmetrize_single_particle_function::execute(
-    func::function<scalartype, func::dmn_variadic<NuDmn, NuDmn, f_dmn_0, f_dmn_1>>& f, bool do_diff) {
+    func::function<scalartype, func::dmn_variadic<nu_dmn_t, nu_dmn_t, f_dmn_0, f_dmn_1>>& f,
+    bool do_diff) {
   symmetrize_over_electron_spin(f, do_diff);
 
   // Symmetrize over real space or momentum.
@@ -295,7 +314,6 @@ void symmetrize_single_particle_function::execute(
       for (int ind_0 = 0; ind_0 < f_dmn_0::dmn_size(); ++ind_0)
         for (int b_0 = 0; b_0 < BDmn::dmn_size(); ++b_0)
           for (int b_1 = 0; b_1 < BDmn::dmn_size(); ++b_1)
-
             f0(b_0, b_1, ind_0) = f(b_0, spin_ind, b_1, spin_ind, ind_0, ind_1);
 
       symmetrize_single_particle_function::executeCluster<Lattice>(f0, do_diff);
@@ -686,57 +704,22 @@ void symmetrize_single_particle_function::executeCluster(
     difference(max, f.get_name(), "k-cluster-domain of the function : " + f.get_name() + "\n");
 }
 
-template <class Lattice, typename scalartype, typename scalar_type, int D, domains::CLUSTER_NAMES N,
-          domains::CLUSTER_SHAPE S>
+template <class Lattice, typename Scalar, typename Scalar2, int D, typename nu_dmn_t,
+          domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
 void symmetrize_single_particle_function::executeCluster(
     func::function<
-        scalartype,
+        Scalar,
         func::dmn_variadic<
-            BDmn, BDmn,
-            func::dmn_0<domains::cluster_domain<scalar_type, D, N, domains::MOMENTUM_SPACE, S>>>>& f,
+            nu_dmn_t, nu_dmn_t,
+            func::dmn_0<domains::cluster_domain<Scalar2, D, N, domains::MOMENTUM_SPACE, S>>>>& f,
     bool do_diff) {
-  typedef domains::cluster_domain<scalar_type, D, N, domains::MOMENTUM_SPACE, S> k_cluster_type;
-  typedef func::dmn_0<k_cluster_type> k_dmn_t;
+  using KCluster = domains::cluster_domain<Scalar2, D, N, domains::MOMENTUM_SPACE, S>;
+  using KDmn = func::dmn_0<KCluster>;
 
-  typedef
-      typename domains::cluster_symmetry<k_cluster_type>::sym_super_cell_dmn_t sym_super_cell_dmn_t;
+  using sym_super_cell_dmn_t =
+    typename domains::cluster_symmetry<KCluster>::sym_super_cell_dmn_t;
 
-  const auto& k_symmetry_matrix = domains::cluster_symmetry<k_cluster_type>::get_symmetry_matrix();
-
-  static func::function<scalartype, func::dmn_variadic<BDmn, BDmn, k_dmn_t>> f_new;
-
-  f_new = scalartype(0.);
-
-  for (int k_ind = 0; k_ind < k_dmn_t::dmn_size(); ++k_ind) {
-    for (int b0 = 0; b0 < BDmn::dmn_size(); ++b0) {
-      for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1) {
-        double norm = 0.;
-        for (int s_ind = 0; s_ind < sym_super_cell_dmn_t::dmn_size(); ++s_ind) {
-          int k_new = k_symmetry_matrix(k_ind, b0, s_ind).first;  // FIXME: b0 -> b1
-
-          int b0_new = k_symmetry_matrix(k_ind, b0, s_ind).second;
-          int b1_new = k_symmetry_matrix(k_ind, b1, s_ind).second;
-
-          const double sign = Lattice::transformationSignOfK(b0, b1, s_ind);
-          norm += std::abs(sign);
-
-          f_new(b0, b1, k_ind) += sign * f(b0_new, b1_new, k_new);
-        }
-        assert(std::abs(norm) > 0);
-        f_new(b0, b1, k_ind) /= norm;
-      }
-    }
-  }
-
-  double max = 0;
-  for (int ind = 0; ind < f.size(); ++ind) {
-    max = std::max(max, std::abs(f(ind) - f_new(ind)));
-
-    f(ind) = f_new(ind);
-  }
-
-  if (do_diff)
-    difference(max, f.get_name(), "k-clusterdomain of the function : " + f.get_name() + "\n");
+  //The meat of the H0 symmetry testing will occur here
 }
 
 template <typename ClusterDmn>

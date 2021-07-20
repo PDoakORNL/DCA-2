@@ -14,12 +14,13 @@
 #include "gtest/gtest.h"
 
 #include "dca/io/json/json_reader.hpp"
+#include "dca/phys/parameters/parameters.hpp"
+
 #include "dca/function/util/real_complex_conversion.hpp"
 #include "dca/parallel/no_concurrency/no_concurrency.hpp"
 #include "dca/parallel/stdthread/stdthread.hpp"
 #include "dca/phys/dca_algorithms/compute_free_greens_function.hpp"
 #include "dca/phys/domains/cluster/symmetries/point_groups/no_symmetry.hpp"
-#include "dca/phys/parameters/parameters.hpp"
 #include "dca/profiling/null_profiler.hpp"
 #include "dca/phys/models/analytic_hamiltonians/twoband_chain.hpp"
 #include "dca/phys/models/tight_binding_model.hpp"
@@ -38,6 +39,7 @@ using Lattice = typename Parameters::lattice_type;
 
 using RClusterDmn = typename Parameters::RClusterDmn;
 using KClusterDmn = typename Parameters::KClusterDmn;
+
 using TDmn = typename Parameters::TDmn;
 using WDmn = typename Parameters::WDmn;
 
@@ -75,11 +77,10 @@ protected:
   function<int, dmn_variadic<NuDmn, NuDmn>> H_symmetry_;
 };
 
-TEST_F(SymmetrizeTest, H0_){
+TEST_F(SymmetrizeTest, H0){
   // Test the symmetrization.
-  //  dca::phys::symmetrize:: execute<Lattice>(H0_, true);
-
-  EXPECT_FALSE(dca::phys::symmetrize::differenceDetected());
+  dca::phys::symmetrize::execute<Lattice>(H0_, true);
+  //EXPECT_FALSE(dca::phys::symmetrize::differenceDetected());
 
 }
 
