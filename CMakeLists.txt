@@ -4,7 +4,7 @@
 #
 # CMake build script for DCA++
 
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.18)
 project(DCA++ C CXX)
 
 ################################################################################
@@ -93,6 +93,9 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/include/dca/config DESTINATION include/dca
 ################################################################################
 # External libraries
 include(dca_external_libs)  # Sets DCA_EXTERNAL_LIBS and DCA_EXTERNAL_INCLUDE_DIRS.
+
+include(dca_check_stdlib)
+message("std::filesystem resolved")
 
 ################################################################################
 # Include directories
