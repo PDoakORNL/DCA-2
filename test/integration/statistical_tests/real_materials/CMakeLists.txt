@@ -15,13 +15,14 @@ dca_add_gtest(NiO_stattest
 
 include(FetchContent)
   
-# FetchContent_Declare(
-#     niotestdata
-#     URL https://www.dropbox.com/s/0jbzz6e12vgu3go/NiO.data.ed.hdf5
-#     URL_HASH SHA256=e9645af0b0e1e98af9ccfa808ca7895a100a372d
-#     )
+FetchContent_Declare(
+    niotestdata
+    URL https://www.dropbox.com/s/0jbzz6e12vgu3go/NiO.data.ed.hdf5
+    URL_HASH SHA256=c788632b768c8e3545772315445caae9f8be49e6b25cb64a3860cb6fb7f361e3
+    DOWNLOAD_NO_EXTRACT 1
+    )
 
-# FetchContent_MakeAvailable(niotestdata)
+FetchContent_MakeAvailable(niotestdata)
   
 configure_file(t_ij_NiO.txt ${CMAKE_CURRENT_BINARY_DIR}/t_ij_NiO.txt COPYONLY)
 configure_file(U_ij_NiO_8_lit.txt ${CMAKE_CURRENT_BINARY_DIR}/U_ij_NiO_8_lit.txt COPYONLY)
