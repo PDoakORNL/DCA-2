@@ -10,7 +10,7 @@ if (DCA_BUILD_ANALYSIS)
     target_link_libraries(main_analysis PUBLIC signals ${DCA_LIBS} simplex_gm_rule)
 
   message("DCA_MODEL_IS_MATERIAL_LATTICE ${DCA_MODEL_IS_MATERIAL_LATTICE}")
-  if (DCA_LATTICE STREQUAL "square")
+  if ( (DCA_LATTICE STREQUAL "square") OR (DCA_LATTICE STREQUAL "threeband") )
     #new development of exanded q chi_q_omega
     add_executable(chi_q_omega chi_q_omega.cpp)
     target_compile_definitions(chi_q_omega PUBLIC DCA_HAS_SOFQOMEGA)

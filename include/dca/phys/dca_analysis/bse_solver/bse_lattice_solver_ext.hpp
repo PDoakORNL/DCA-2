@@ -160,16 +160,6 @@ private:
   void recordEigenvaluesAndEigenvectors(const linalg::Vector<EvElementType, linalg::CPU>& L,
                                         const linalg::Matrix<EvElementType, linalg::CPU>& VR);
 
-  auto makeDispersionFunc(std::vector<double> q) {
-    assert(q.size() == 2);
-    double model_t = parameters.get_t();
-    double t_prime = parameters.get_t_prime();
-    return [model_t, t_prime, q](auto& k_elem) -> double {
-      return -2. * model_t * (std::cos(k_elem[0] + q[0]) + std::cos(k_elem[1] + q[1])) -
-             4.0 * t_prime * std::cos(k_elem[0] + q[0]) * std::cos(k_elem[1] + q[1]);
-    };
-  }
-
   ParametersType& parameters;
   concurrency_type& concurrency;
 
@@ -252,9 +242,7 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::initialize() 
       ++iter_elements;
     }
 
-  // what we need to do here is actually create a q shifted H_0
-  std::transform(k_grid_fine_.begin(), k_grid_fine_.end(), ek_.begin(),
-                 makeDispersionFunc({0.0, 0.0}));
+  Lattice::initializeH0(parameters, h0_k_fine_);
 }
 
 template <typename ParametersType, typename DcaDataType, typename ScalarType>
@@ -268,7 +256,7 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
   std::vector<Chi0LatticeOneQ> chi0_qs(n_threads);
 
   auto computeSingleSiteChi0 = [&](auto& q_elems, auto& chi0_q) {
-    computeChi0LatticeSingleSite(q_elems, chi0_q);
+    computeChi0LatticeBetter(q_elems, chi0_q);
   };
 
   auto makeChi0LatticeOneQ = [&computeSingleSiteChi0, &q_elements](
@@ -299,7 +287,6 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
   profiler_type prof(__FUNCTION__, "BseLatticeSolver", __LINE__);
 
   std::vector<double> ekpq(n_k_grid_);
-
   // std::cout << "WVertexDmn::dmn_size()" << WVertexDmn::dmn_size() << '\n';
   int n_w_G4 = WVertexDmn::dmn_size();
   int mid_index_w_G40 = n_w_G4 / 2;
@@ -308,7 +295,7 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
   int mid_index_w_G0 = n_w_G / 2;
 
   // these are a good candidate for memoization
-  std::transform(k_grid_fine_.begin(), k_grid_fine_.end(), ekpq.begin(), makeDispersionFunc(chi_q));
+  // std::transform(k_grid_fine_.begin(), k_grid_fine_.end(), ekpq.begin(), makeDispersionFunc(chi_q));
 
   auto& w_set = WDmn::get_elements();
   auto& wn_set = WVertexDmn::get_elements();
@@ -391,9 +378,9 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
       int iwPlusiwm = std::min(std::max(i_wG + wex_ind, 0), n_w_G - 1);  // iwn + iwm
       double wex = 2 * wex_ind * M_PI * inv_beta;
       assert((wex + wn_set[iwn]) - w_set[iwPlusiwm] < 0.0001);
-      for (int ik = 0; ik < KQFineDmn::size(); ++ik)
-        for (int nu_2 = 0; nu_2 < NuDmn::size(); ++nu_2)
-          for (int nu_1 = 0; nu_1 < NuDmn::size(); ++nu_1) {
+      for (int ik = 0; ik < KQFineDmn::dmn_size(); ++ik)
+        for (int nu_2 = 0; nu_2 < NuDmn::dmn_size(); ++nu_2)
+          for (int nu_1 = 0; nu_1 < NuDmn::dmn_size(); ++nu_1) {
             auto& sigma = dca_data_.Sigma;
             std::complex<double> c1{0, wn_set[iwn]};
             std::complex<double> c2{0, wex + wn_set[iwn]};

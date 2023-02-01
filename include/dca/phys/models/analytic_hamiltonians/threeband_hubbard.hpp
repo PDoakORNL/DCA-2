@@ -249,7 +249,14 @@ void ThreebandHubbard<PointGroupType>::initializeH0WithQ(
 
   H_0 = ScalarType(0);
 
-  const ScalarType I(0, 1.);
+  auto makeI = []() -> ScalarType {
+    if constexpr ( dca::util::IsComplex<ScalarType>::value )
+	return {0,1.0};
+    else
+      return 0.0;
+  };
+
+  const ScalarType I = makeI();
 
   for (int k_ind = 0; k_ind < KDmn::dmn_size(); ++k_ind) {
     const auto& k = k_vecs[k_ind];
