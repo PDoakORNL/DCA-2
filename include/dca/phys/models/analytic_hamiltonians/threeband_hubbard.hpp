@@ -82,7 +82,7 @@ public:
   static void initializeH0WithQ(
       const ParametersType& parameters,
       func::function<ScalarType, func::dmn_variadic<func::dmn_variadic<BandDmn, SpinDmn>,
-      func::dmn_variadic<BandDmn, SpinDmn>, KDmn>>& H_0, typename KDmn::element_type q);
+      func::dmn_variadic<BandDmn, SpinDmn>, KDmn>>& H_0, const typename KDmn::element_type q);
 };
 
 template <typename PointGroupType>
@@ -231,7 +231,7 @@ template <typename ParametersType, typename ScalarType, typename BandDmn, typena
 void ThreebandHubbard<PointGroupType>::initializeH0WithQ(
     const ParametersType& parameters,
     func::function<ScalarType, func::dmn_variadic<func::dmn_variadic<BandDmn, SpinDmn>,
-    func::dmn_variadic<BandDmn, SpinDmn>, KDmn>>& H_0, typename KDmn::element_type q) {
+    func::dmn_variadic<BandDmn, SpinDmn>, KDmn>>& H_0, const typename KDmn::element_type q) {
   if (BandDmn::dmn_size() != BANDS)
     throw std::logic_error("Three-band Hubbard model has three bands.");
   if (SpinDmn::dmn_size() != 2)

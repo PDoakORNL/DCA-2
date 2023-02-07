@@ -311,8 +311,8 @@ std::size_t dmn_variadic<domain_list...>::index_lookup(std::integral_constant<bo
   auto seq = detail::make_index_sequence_with_offset<1, sizeof...(Args)>();
 
 #ifndef NDEBUG
-  // auto seq2 = std::make_index_sequence<sizeof...(Args) + 1>{};
-  // check_indices("leaf", leaf_domain_sizes, seq2, leaf_i0, std::forward<Args>(leaf_indices)...);
+  auto seq2 = std::make_index_sequence<sizeof...(Args) + 1>{};
+  check_indices("leaf", leaf_domain_sizes, seq2, leaf_i0, std::forward<Args>(leaf_indices)...);
 #endif  // NDEBUG
 
   std::size_t N = leaf_i0 + detail::multiply_offsets(leaf_domain_steps, seq,

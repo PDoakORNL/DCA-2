@@ -42,6 +42,7 @@
 #include "dca/phys/domains/quantum/electron_band_domain.hpp"
 #include "dca/phys/domains/time_and_frequency/vertex_frequency_domain.hpp"
 #include "dca/util/print_time.hpp"
+#include "dca/util/to_string.hpp"
 
 namespace dca {
 namespace phys {
@@ -97,6 +98,8 @@ public:
   using GammaLatticeDmn = SharedDmn;
   using Chi0LatticeOneQDmn = func::dmn_variadic<SharedDmn, WExDmn>;
 
+  using BDmn = typename DcaDataType::BDmn;
+  using SDmn = typename DcaDataType::SDmn;
   using NuDmn = typename DcaDataType::NuDmn;
   using H0QDmn = func::dmn_variadic<NuDmn, NuDmn, KQFineDmn>;
 
@@ -254,9 +257,14 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
   int n_threads = 8;
 
   std::vector<Chi0LatticeOneQ> chi0_qs(n_threads);
+  std::ostringstream name;
+  for (int i = 0; i < n_threads; ++i) {
+    name << "chi0_q_" << i;
+    chi0_qs[i].set_name(name.str());
+  }
 
-  auto computeSingleSiteChi0 = [&](auto& q_elems, auto& chi0_q) {
-    computeChi0LatticeBetter(q_elems, chi0_q);
+  auto computeSingleSiteChi0 = [&](const auto& q_elem, auto& chi0_q) {
+    computeChi0LatticeBetter(q_elem, chi0_q);
   };
 
   auto makeChi0LatticeOneQ = [&computeSingleSiteChi0, &q_elements](
@@ -276,65 +284,8 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
   };
 
   std::cout << "Calculating Chi0Lattice on " << n_threads << " threads:";
-
   Threading().execute(n_threads, makeChi0LatticeOneQ, std::ref(chi0_qs), std::ref(chi_0_lattice));
   std::cout << '\n';
-}
-
-template <typename ParametersType, typename DcaDataType, typename ScalarType>
-void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0LatticeSingleSite(
-    const std::vector<double>& chi_q, Chi0LatticeOneQ& cloq) {
-  profiler_type prof(__FUNCTION__, "BseLatticeSolver", __LINE__);
-
-  std::vector<double> ekpq(n_k_grid_);
-  // std::cout << "WVertexDmn::dmn_size()" << WVertexDmn::dmn_size() << '\n';
-  int n_w_G4 = WVertexDmn::dmn_size();
-  int mid_index_w_G40 = n_w_G4 / 2;
-
-  int n_w_G = WDmn::dmn_size();
-  int mid_index_w_G0 = n_w_G / 2;
-
-  // these are a good candidate for memoization
-  // std::transform(k_grid_fine_.begin(), k_grid_fine_.end(), ekpq.begin(), makeDispersionFunc(chi_q));
-
-  auto& w_set = WDmn::get_elements();
-  auto& wn_set = WVertexDmn::get_elements();
-  double inv_beta = 1 / parameters.get_beta();
-#ifndef NDEBUG
-  // auto& wex_set = WExDmn::get_elements();
-  // std::cout << "WVertexDmn::elements: " << vectorToString(wn_set) << '\n';
-  // std::cout << "WExDmn::elements: " << vectorToString(wex_set) << '\nf';
-  // std::vector<double> wex_translated(wex_set.size(), 0.0);
-  // std::transform(wex_set.begin(), wex_set.end(), wex_translated.begin(),
-  //                [inv_beta](int wex_ind) { return 2 * wex_ind * M_PI * inv_beta; });
-  // std::cout << "WEx::elements translated: " << vectorToString(wex_translated) << '\n';
-#endif
-
-  double mu = parameters.get_chemical_potential();
-  std::complex<double> inv_n_k_grid{1.0 / static_cast<double>(n_k_grid_), 0.0};
-
-  std::vector<std::complex<double>> cc(n_k_grid_);
-  for (int wex_ind = 0; wex_ind < WExDmn::dmn_size(); ++wex_ind) {
-    for (int iwn = 0; iwn < n_w_G4; ++iwn) {
-      // wn is an actual frequency from WVertexDmn
-      int i_wG = iwn - mid_index_w_G40 + mid_index_w_G0;
-      int iwPlusiwm = std::min(std::max(i_wG + wex_ind, 0), n_w_G - 1);  // iwn + iwm
-      double wex = 2 * wex_ind * M_PI * inv_beta;
-      assert((wex + wn_set[iwn]) - w_set[iwPlusiwm] < 0.0001);
-      for (int ik = 0; ik < n_k_grid_; ++ik) {
-        auto& sigma = dca_data_.Sigma;
-        std::complex<double> c1{0, wn_set[iwn]};
-        std::complex<double> c2{0, wex + wn_set[iwn]};
-        // assert(ek[ik] != ekpq[ik]);
-        c1 = 1.0 / (c1 + (mu - ek_[ik] - sigma(0, 0, 0, i_wG)));
-        c2 = 1.0 / (c2 + (mu - ekpq[ik] - sigma(0, 0, 0, iwPlusiwm)));
-        cc[ik] = -c1 * c2;
-      }
-      std::complex<double> chi0_elem =
-          std::accumulate(cc.begin(), cc.end(), std::complex<double>{0, 0});
-      cloq(0, 0, iwn, wex_ind) = chi0_elem * inv_n_k_grid;
-    }
-  }
 }
 
 template <typename ParametersType, typename DcaDataType, typename ScalarType>
@@ -342,7 +293,7 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
     const std::vector<double>& chi_q, Chi0LatticeOneQ& cloq) {
   profiler_type prof(__FUNCTION__, "BseLatticeSolver", __LINE__);
 
-  func::function<ScalarType, H0QDmn> h0_q_fine;
+  func::function<ScalarType, H0QDmn> h0_q_fine("h0_q_fine" + vectorToString(chi_q));
 
   // std::cout << "WVertexDmn::dmn_size()" << WVertexDmn::dmn_size() << '\n';
   int n_w_G4 = WVertexDmn::dmn_size();
@@ -369,7 +320,7 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
   double mu = parameters.get_chemical_potential();
   std::complex<double> inv_n_k_grid{1.0 / static_cast<double>(n_k_grid_), 0.0};
 
-  func::function<std::complex<double>, H0QDmn> cc;
+  func::function<std::complex<double>, KQFineDmn> cc;
 
   for (int wex_ind = 0; wex_ind < WExDmn::dmn_size(); ++wex_ind) {
     for (int iwn = 0; iwn < n_w_G4; ++iwn) {
@@ -378,20 +329,26 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeChi0La
       int iwPlusiwm = std::min(std::max(i_wG + wex_ind, 0), n_w_G - 1);  // iwn + iwm
       double wex = 2 * wex_ind * M_PI * inv_beta;
       assert((wex + wn_set[iwn]) - w_set[iwPlusiwm] < 0.0001);
-      for (int ik = 0; ik < KQFineDmn::dmn_size(); ++ik)
-        for (int nu_2 = 0; nu_2 < NuDmn::dmn_size(); ++nu_2)
-          for (int nu_1 = 0; nu_1 < NuDmn::dmn_size(); ++nu_1) {
+	for (int sp_2 = 0; sp_2 < SDmn::dmn_size(); ++sp_2)
+      for (int bd_2 = 0; bd_2 < BDmn::dmn_size(); ++bd_2)
+	for (int sp_1 = 0; sp_1 < SDmn::dmn_size(); ++sp_1)
+        for (int bd_1 = 0; bd_1 < BDmn::dmn_size(); ++bd_1) {
+          // Each nu_2 nu_1 compination is computed separately
+          for (int ik = 0; ik < KQFineDmn::dmn_size(); ++ik) {
             auto& sigma = dca_data_.Sigma;
             std::complex<double> c1{0, wn_set[iwn]};
             std::complex<double> c2{0, wex + wn_set[iwn]};
             // assert(ek[ik] != ekpq[ik]);
+	    int nu_1 = sp_1*BDmn::dmn_size() + bd_1;
+	    int nu_2 = sp_2*BDmn::dmn_size() + bd_2; 
             c1 = 1.0 / (c1 + (mu - h0_k_fine_(nu_1, nu_2, ik) - sigma(nu_1, nu_2, 0, i_wG)));
             c2 = 1.0 / (c2 + (mu - h0_q_fine(nu_1, nu_2, ik) - sigma(nu_1, nu_2, 0, iwPlusiwm)));
-            cc(nu_1, nu_2, ik) = -c1 * c2;
+            cc(ik) = -c1 * c2;
           }
-      std::complex<double> chi0_elem =
-          std::accumulate(cc.begin(), cc.end(), std::complex<double>{0, 0});
-      cloq(0, 0, iwn, wex_ind) = chi0_elem * inv_n_k_grid;
+          std::complex<double> chi0_elem =
+              std::accumulate(cc.begin(), cc.end(), std::complex<double>{0, 0});
+          cloq(bd_1, bd_2, iwn, wex_ind) += chi0_elem * inv_n_k_grid;
+        }
     }
   }
 }
@@ -474,10 +431,13 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeG4Latt
       writeG4OneQ(g4ls[id], q_ind);
       // mutex bulk assign G4_lattice
     }
+    std::cout << '.';
   };
 
+  std::cout << "Calculating G4Latttice on " << n_threads << " threads:";
   Threading().execute(n_threads, makeG4LatticeOneQ, std::ref(chi0_qs), std::ref(g4ls),
                       std::ref(chi_0_lattice));
+  std::cout << '\n';
 }
 
 template <typename ParametersType, typename DcaDataType, typename ScalarType>
@@ -521,9 +481,15 @@ void BseLatticeSolverExt<ParametersType, DcaDataType, ScalarType>::computeG4Latt
     dca::linalg::matrixop::inverse(g2l_final);
 
     // we can't copy this back in a faster fashion because it quite likely g2l is not contiguous.
-    for (int j = 0; j < N; ++j)
-      for (int i = 0; i < N; ++i)
-        g4l(0, 0, i, 0, 0, j, iwex) = g2l_final(i, j);
+    int bands = b::dmn_size();
+    for (int iw2 = 0; iw2 < WVertexDmn::dmn_size(); ++iw2)
+      for (int l4 = 0; l4 < bands; ++l4)
+        for (int l2 = 0; l2 < bands; ++l2)
+          for (int iw1 = 0; iw1 < WVertexDmn::dmn_size(); ++iw1)
+            for (int l3 = 0; l3 < bands; ++l3)
+              for (int l1 = 0; l1 < bands; ++l1)
+                g4l(l1, l3, iw1, l2, l4, iw2, iwex) = g2l_final(
+                    iw1 * bands * bands + l3 * bands + l1, iw2 * bands * bands + l4 * bands + l2);
   }
 }
 
