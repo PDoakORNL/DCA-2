@@ -294,15 +294,25 @@ void inverse(MatrixType<Scalar, device_name>& mat, Vector<int, CPU>& ipiv,
   assert(mat.is_square());
 
   ipiv.resizeNoCopy(mat.nrRows());
-
+  try {
   lapack::UseDevice<device_name>::getrf(mat.nrRows(), mat.nrCols(), mat.ptr(),
                                         mat.leadingDimension(), ipiv.ptr());
+  } catch (lapack::util::LapackException& err) {
+    if (err.info() < 0)
+      throw(std::logic_error("LU decomposition failed."));
+  }
   // Get optimal worksize.
   int lwork = util::getInverseWorkSize(mat);
   work.resizeNoCopy(lwork);
 
+  try {
   lapack::UseDevice<device_name>::getri(mat.nrRows(), mat.ptr(), mat.leadingDimension(), ipiv.ptr(),
                                         work.ptr(), lwork);
+  }  catch (lapack::util::LapackException& err) {
+    if (err.info() < 0)
+      throw(std::logic_error("LU decomposition failed."));
+  }
+
 }
 template <typename Scalar, DeviceType device_name, template <typename, DeviceType> class MatrixType>
 void inverse(MatrixType<Scalar, device_name>& mat) {
