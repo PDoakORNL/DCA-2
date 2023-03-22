@@ -644,12 +644,12 @@ void DcaData<Parameters, DT>::initializeSigma(const std::string& filename) {
       std::cerr << "current step " << i << '\n';
       bool has_iteration = reader.execute("DCA-loop-functions/completed-iteration", completed_iteration);
       std::cerr << "completed_iteration " << completed_iteration << '\n';
-      if (has_iteration && (i > completed_iteration)) {
+      if (has_iteration && (i >= completed_iteration)) {
 	std::cerr << "past complete iterations " << completed_iteration << "at step " << i << '\n';
 	hdf5_last_iteration = completed_iteration;
 	reader.close_file();
 	reader.open_file(filename);
-	step_count = hdf5_last_iteration + 1;
+	step_count = hdf5_last_iteration;
 	goto find_step;	
       }
       reader.end_step();
