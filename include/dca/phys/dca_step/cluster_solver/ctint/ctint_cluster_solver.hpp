@@ -246,7 +246,7 @@ auto CtintClusterSolver<device_t, Parameters, use_submatrix, DIST>::finalize() {
   SpGreensFunction M;
 
   // average M across ranks.
-  SignType<Scalar> avg_sign = gatherMAndG4(M, compute_error);
+  dca::util::SignType<Scalar> avg_sign = gatherMAndG4(M, compute_error);
 
   // compute G_r_t and save it into data_.
   computeG_k_w(data_.G0_k_w_cluster_excluded, M, data_.G_k_w);

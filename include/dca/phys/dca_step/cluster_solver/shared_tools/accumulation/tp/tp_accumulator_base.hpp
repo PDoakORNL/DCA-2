@@ -100,7 +100,7 @@ public:
   // In: sign: sign of the configuration.
   template <class Configuration, typename SpScalar>
   double accumulate(const std::array<linalg::Matrix<SpScalar, linalg::CPU>, 2>& M_pair,
-                    const std::array<Configuration, 2>& configs, dca::SignType<SpScalar> sign);
+                    const std::array<Configuration, 2>& configs, dca::util::SignType<SpScalar> sign);
 
   // Empty method for compatibility with GPU version.
   void finalize() {}
