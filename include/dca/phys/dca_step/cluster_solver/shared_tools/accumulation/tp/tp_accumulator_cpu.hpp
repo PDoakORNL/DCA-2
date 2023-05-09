@@ -340,9 +340,9 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::getGMultiband(int s, int k1, in
   for (int b2 = 0; b2 < n_bands_; ++b2)
     for (int b1 = 0; b1 < n_bands_; ++b1) {
       G(b1, b2) = beta * G(b1, b2) + G_ptr[b1 + b2 * n_bands_];
-      if (std::abs(G(b1, b2).imag()) > 10)  // std::isnan(imag(G_(b1, b2, s, k1, k2, w1_ext, w2_ext))))
-        std::cout << w1 << "," << w2 << "," << k1 << "," << k2 << "," << b1 << "," << b2 << ","
-                  << G(b1, b2) << "*G_ptr" << G_ptr->real() << " + " << G_ptr->imag() << "\n";
+      /* if (std::abs(G(b1,b2).imag()) > 10)  //std::isnan(imag(G_(b1, b2, s, k1, k2, w1_ext, w2_ext)))) */
+      /*   std::cout << w1 << "," << w2 << "," << k1 << "," << k2 << "," << b1 << "," << b2 << ","
+       * << G(b1, b2) << "*G_ptr" << G_ptr->real() << " + " << G_ptr->imag() << "\n"; */
     }
 }
 
@@ -390,7 +390,6 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
         TpComplex G4_FromSpinDifference{0.0, 0.0};
         TpComplex G4_DirectDifference{0.0, 0.0};
 #endif
-  
   if constexpr (Base::spin_symmetric_) {
     switch (channel) {
       case FourPointType::PARTICLE_HOLE_TRANSVERSE:
