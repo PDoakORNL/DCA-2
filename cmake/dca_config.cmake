@@ -121,8 +121,8 @@ endif()
 
 # Lattice type
 set(DCA_LATTICE "square" CACHE STRING "Lattice type, options are: bilayer | square | triangular |
-Kagome | Altermagnet | hund | twoband_Cu | threeband | Rashba_Hubbard | Moire_Hubbard | FeAs | material_NiO | material_FeSn ")
-set_property(CACHE DCA_LATTICE PROPERTY STRINGS bilayer square triangular Kagome Altermagnet hund twoband_Cu threeband
+Kagome | Altermagnet | Altermagnet_SU2 | hund | twoband_Cu | threeband | Rashba_Hubbard | Moire_Hubbard | FeAs | material_NiO | material_FeSn ")
+set_property(CACHE DCA_LATTICE PROPERTY STRINGS bilayer square triangular Kagome Altermagnet Altermagnet_SU2 hund twoband_Cu threeband
              Rashba_Hubbard Moire_Hubbard FeAs material_NiO material_FeSn)
 
 if (DCA_LATTICE STREQUAL "bilayer")
@@ -147,6 +147,10 @@ elseif (DCA_LATTICE STREQUAL "Altermagnet")
   set(DCA_LATTICE_TYPE dca::phys::models::Altermagnet<PointGroup>)
   set(DCA_LATTICE_INCLUDE
     "dca/phys/models/analytic_hamiltonians/twoband_altermagnet.hpp")
+elseif (DCA_LATTICE STREQUAL "Altermagnet_SU2")
+  set(DCA_LATTICE_TYPE dca::phys::models::AltermagnetSU2<PointGroup>)
+  set(DCA_LATTICE_INCLUDE
+    "dca/phys/models/analytic_hamiltonians/twoband_altermagnet_SU2.hpp")
 elseif (DCA_LATTICE STREQUAL "hund")
   set(DCA_LATTICE_TYPE dca::phys::models::HundLattice<PointGroup>)
 elseif (DCA_LATTICE STREQUAL "threeband")
@@ -184,7 +188,7 @@ elseif (DCA_LATTICE STREQUAL "material_FeSn")
       "dca/phys/models/material_hamiltonians/material_lattice.hpp")
   set(DCA_MODEL_IS_MATERIAL_LATTICE ON CACHE BOOL "is the model a material lattice")
 else()
-  message(FATAL_ERROR "Please set DCA_LATTICE to a valid option: bilayer | square | triangular | Kagome | Altermagnet | hund | twoband_Cu | threeband | Rashba_Hubbard | Moire_Hubbard | FeAs | material_NiO | material_FeSn.")
+  message(FATAL_ERROR "Please set DCA_LATTICE to a valid option: bilayer | square | triangular | Kagome | Altermagnet | Altermagnet_SU2 | hund | twoband_Cu | threeband | Rashba_Hubbard | Moire_Hubbard | FeAs | material_NiO | material_FeSn.")
 endif()
 
 # Model type

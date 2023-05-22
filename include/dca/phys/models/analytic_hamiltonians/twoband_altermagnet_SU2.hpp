@@ -9,8 +9,8 @@
 //
 // Implementation of the Satoshi Okamoto's 2-orbital altermagnet Hubbard model
 
-#ifndef DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_TWOBAND_ALTERMAGNET_HPP
-#define DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_TWOBAND_ALTERMAGNET_HPP
+#ifndef DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_TWOBAND_ALTERMAGNET_SU2_HPP
+#define DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_TWOBAND_ALTERMAGNET_SU2_HPP
 
 #include <cmath>
 #include <stdexcept>
@@ -30,10 +30,10 @@ namespace models {
 
 // TODO: the symmetry of this system must be checked.
 template <typename SymmetryGroup>
-class Altermagnet {
+class AltermagnetSU2 {
 public:
   static constexpr bool complex_g0 = false;
-  static constexpr bool spin_symmetric = false;
+  static constexpr bool spin_symmetric = true;
 
   using LDA_point_group = domains::no_symmetry<2>;
   using DCA_point_group = SymmetryGroup;
@@ -43,7 +43,7 @@ public:
   const static ClusterShapeType LDA_cluster_shape = PARALLELEPIPED;
 
   const static int DIMENSION = 2;
-  const static int BANDS = 4;  // AB-sublattices for AF * two spins that are treated as orbitals
+  const static int BANDS = 2;  // AB-sublattices for AF
 
   const static double* initializeRDCABasis();
   // static double* initializeKDCABasis();
@@ -80,55 +80,55 @@ public:
 };
 
 template <typename PointGroupType>
-int Altermagnet<PointGroupType>::transformationSignOfR(int b1 [[maybe_unused]],
-                                                       int b2 [[maybe_unused]],
-                                                       int s [[maybe_unused]]) {
+int AltermagnetSU2<PointGroupType>::transformationSignOfR(int b1 [[maybe_unused]],
+                                                          int b2 [[maybe_unused]],
+                                                          int s [[maybe_unused]]) {
   return 1;  // TODO: FIXME
 }
 
 template <typename PointGroupType>
-int Altermagnet<PointGroupType>::transformationSignOfK(int b1 [[maybe_unused]],
-                                                       int b2 [[maybe_unused]],
-                                                       int s [[maybe_unused]]) {
+int AltermagnetSU2<PointGroupType>::transformationSignOfK(int b1 [[maybe_unused]],
+                                                          int b2 [[maybe_unused]],
+                                                          int s [[maybe_unused]]) {
   return 1;  // TODO: FIXME
 }
 
 template <typename PointGroupType>
-const double* Altermagnet<PointGroupType>::initializeRDCABasis() {
+const double* AltermagnetSU2<PointGroupType>::initializeRDCABasis() {
   static std::array<double, 4> basis{1.0, 1.0, 1.0, -1.0};
   return basis.data();
 }
 
 template <typename PointGroupType>
-const double* Altermagnet<PointGroupType>::initializeRLDABasis() {
+const double* AltermagnetSU2<PointGroupType>::initializeRLDABasis() {
   static std::array<double, 4> basis{1.0, 1.0, 1.0, -1.0};
   return basis.data();
 }
 
 template <typename PointGroupType>
-std::vector<int> Altermagnet<PointGroupType>::flavors() {
-  return {0, 1, 2, 3};
+std::vector<int> AltermagnetSU2<PointGroupType>::flavors() {
+  return {0, 1};
 }
 
 template <typename PointGroupType>
-std::vector<std::vector<double>> Altermagnet<PointGroupType>::aVectors() {
-  return {{0, 0}, {1.0, 0}, {0, 0}, {1.0, 0}};
+std::vector<std::vector<double>> AltermagnetSU2<PointGroupType>::aVectors() {
+  return {{0, 0}, {1.0, 0}};
 }
 
 template <typename PointGroupType>
-std::vector<std::pair<std::pair<int, int>, std::pair<int, int>>> Altermagnet<
+std::vector<std::pair<std::pair<int, int>, std::pair<int, int>>> AltermagnetSU2<
     PointGroupType>::orbitalPermutations() {
   return {};
 }
 
 template <typename PointGroupType>
 template <typename BandDmn, typename SpinDmn, typename RDmn, typename parameters_type>
-void Altermagnet<PointGroupType>::initializeHInteraction(
+void AltermagnetSU2<PointGroupType>::initializeHInteraction(
     func::function<double, func::dmn_variadic<func::dmn_variadic<BandDmn, SpinDmn>,
                                               func::dmn_variadic<BandDmn, SpinDmn>, RDmn>>& H_interaction,
     const parameters_type& parameters) {
   if (BandDmn::dmn_size() != BANDS)
-    throw std::logic_error("Altermagnet Hubbard model has four bands.");
+    throw std::logic_error("Altermagnet Hubbard model has two bands.");
   if (SpinDmn::dmn_size() != 2)
     throw std::logic_error("Spin domain size must be 2.");
 
@@ -138,22 +138,21 @@ void Altermagnet<PointGroupType>::initializeHInteraction(
 
   H_interaction = 0.;
 
-  // Basis is A,up, B,up, A,dn, B,dn
-  H_interaction(0, 0, 2, 0, origin) = U;
-  H_interaction(2, 0, 0, 0, origin) = U;
-  H_interaction(1, 0, 3, 0, origin) = U;
-  H_interaction(3, 0, 1, 0, origin) = U;
+  for (int i = 0; i < BANDS; i++) {
+    H_interaction(i, 0, i, 1, origin) = U;
+    H_interaction(i, 1, i, 0, origin) = U;
+  }
 }
 
 template <typename PointGroupType>
 template <class domain>
-void Altermagnet<PointGroupType>::initializeHSymmetry(func::function<int, domain>& H_symmetries) {
+void AltermagnetSU2<PointGroupType>::initializeHSymmetry(func::function<int, domain>& H_symmetries) {
   H_symmetries = -1;
 }
 
 template <typename PointGroupType>
 template <typename ParametersType, typename ScalarType, typename BandDmn, typename SpinDmn, typename KDmn>
-void Altermagnet<PointGroupType>::initializeH0(
+void AltermagnetSU2<PointGroupType>::initializeH0(
     const ParametersType& parameters,
     func::function<ScalarType, func::dmn_variadic<func::dmn_variadic<BandDmn, SpinDmn>,
                                                   func::dmn_variadic<BandDmn, SpinDmn>, KDmn>>& H_0) {
@@ -167,7 +166,6 @@ void Altermagnet<PointGroupType>::initializeH0(
   const auto t0 = parameters.get_t0();
   const auto t1 = parameters.get_t1();
   const auto t2 = parameters.get_t2();
-  const auto h = parameters.get_h();
 
   H_0 = ScalarType(0);
 
@@ -180,15 +178,12 @@ void Altermagnet<PointGroupType>::initializeH0(
     const auto ekBB = -2. * t2 * std::cos(2.0 * k[0]) - 2. * t1 * std::cos(2.0 * k[1]);
     const auto ekAB = -2. * t0 * (std::cos(k[0]) + std::cos(k[1]));
 
-    H_0(0, 0, 0, 0, k_ind) = ekAA - h;
-    H_0(1, 0, 1, 0, k_ind) = ekBB + h;
-    H_0(2, 0, 2, 0, k_ind) = ekAA + h;
-    H_0(3, 0, 3, 0, k_ind) = ekBB - h;
-
-    H_0(0, 0, 1, 0, k_ind) = ekAB;
-    H_0(1, 0, 0, 0, k_ind) = ekAB;
-    H_0(2, 0, 3, 0, k_ind) = ekAB;
-    H_0(3, 0, 2, 0, k_ind) = ekAB;
+    for (int s = 0; s < 2; s++) {
+      H_0(0, s, 0, s, k_ind) = ekAA;
+      H_0(1, s, 1, s, k_ind) = ekBB;
+      H_0(0, s, 1, s, k_ind) = ekAB;
+      H_0(1, s, 0, s, k_ind) = ekAB;
+    }
   }
 }
 
