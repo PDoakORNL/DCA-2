@@ -11,7 +11,7 @@
 // Template specialization of model parameters for two-orbital altermagnet Hubbard model.
 
 template <typename PointGroup>
-class ModelParameters<models::TightBindingModel<models::Altermagnet<PointGroup>>> {
+class ModelParameters<models::TightBindingModel<models::AltermagnetSU2<PointGroup>>> {
 public:
   template <typename Concurrency>
   int getBufferSize(const Concurrency& concurrency) const;
@@ -44,13 +44,6 @@ public:
     t0_ = t2;
   }
 
-  double get_h() const {
-    return h_;
-  }
-  void set_h(double h) {
-    h_ = h;
-  }
-
   double get_U() const {
     return U_;
   }
@@ -62,20 +55,18 @@ private:
   double t0_ = 0;
   double t1_ = 0;
   double t2_ = 0;
-  double h_ = 0;
   double U_ = 0;
 };
 
 template <typename PointGroup>
 template <typename Concurrency>
-int ModelParameters<models::TightBindingModel<models::Altermagnet<PointGroup>>>::getBufferSize(
+int ModelParameters<models::TightBindingModel<models::AltermagnetSU2<PointGroup>>>::getBufferSize(
     const Concurrency& concurrency) const {
   int buffer_size = 0;
 
   buffer_size += concurrency.get_buffer_size(t0_);
   buffer_size += concurrency.get_buffer_size(t1_);
   buffer_size += concurrency.get_buffer_size(t2_);
-  buffer_size += concurrency.get_buffer_size(h_);
   buffer_size += concurrency.get_buffer_size(U_);
 
   return buffer_size;
@@ -83,29 +74,27 @@ int ModelParameters<models::TightBindingModel<models::Altermagnet<PointGroup>>>:
 
 template <typename PointGroup>
 template <typename Concurrency>
-void ModelParameters<models::TightBindingModel<models::Altermagnet<PointGroup>>>::pack(
+void ModelParameters<models::TightBindingModel<models::AltermagnetSU2<PointGroup>>>::pack(
     const Concurrency& concurrency, char* buffer, int buffer_size, int& position) const {
   concurrency.pack(buffer, buffer_size, position, t0_);
   concurrency.pack(buffer, buffer_size, position, t1_);
   concurrency.pack(buffer, buffer_size, position, t2_);
-  concurrency.pack(buffer, buffer_size, position, h_);
   concurrency.pack(buffer, buffer_size, position, U_);
 }
 
 template <typename PointGroup>
 template <typename Concurrency>
-void ModelParameters<models::TightBindingModel<models::Altermagnet<PointGroup>>>::unpack(
+void ModelParameters<models::TightBindingModel<models::AltermagnetSU2<PointGroup>>>::unpack(
     const Concurrency& concurrency, char* buffer, int buffer_size, int& position) {
   concurrency.unpack(buffer, buffer_size, position, t0_);
   concurrency.unpack(buffer, buffer_size, position, t1_);
   concurrency.unpack(buffer, buffer_size, position, t2_);
-  concurrency.unpack(buffer, buffer_size, position, h_);
   concurrency.unpack(buffer, buffer_size, position, U_);
 }
 
 template <typename PointGroup>
 template <typename ReaderOrWriter>
-void ModelParameters<models::TightBindingModel<models::Altermagnet<PointGroup>>>::readWrite(
+void ModelParameters<models::TightBindingModel<models::AltermagnetSU2<PointGroup>>>::readWrite(
     ReaderOrWriter& reader_or_writer) {
   try {
     reader_or_writer.open_group("Altermagnet-Hubbard-model");
@@ -125,11 +114,6 @@ void ModelParameters<models::TightBindingModel<models::Altermagnet<PointGroup>>>
   }
   try {
     reader_or_writer.execute("t2", t2_);
-  }
-  catch (const std::exception& r_e) {
-  }
-  try {
-    reader_or_writer.execute("h", h_);
   }
   catch (const std::exception& r_e) {
   }

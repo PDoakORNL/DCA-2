@@ -164,7 +164,7 @@ protected:
   void inline updateG4SpinDifference(TpComplex* G4_ptr, const SignType factor, const int k1_a,
                                      const int k2_a, const int w1_a, const int w2_a, const int k1_b,
                                      const int k2_b, const int w1_b, const int w2_b,
-                                     const SpScalar alpha, const bool cross_legs);
+                                     const SpScalar alpha);
 
 protected:
   CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtPosDmn, linalg::CPU, non_density_density_> ndft_obj_;
@@ -419,11 +419,14 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
                     TpComplex* const G4_ptr = &G4(0, 0, 0, 0, k1, w1, k2, w2, k_ex_idx, w_ex_idx);
                     updateG4SpinDifference(G4_ptr, -1, k1, momentum_sum(k1, k_ex), w1,
                                            w_plus_w_ex(w1, w_ex), momentum_sum(k2, k_ex), k2,
-                                           w_plus_w_ex(w2, w_ex), w2, sign_over_2, false);
+                                           w_plus_w_ex(w2, w_ex), w2, sign_over_2);
                     for (int s = 0; s < 2; ++s)
-                      updateG4Atomic(G4_ptr, s, k1, k2, w1, w2, s, momentum_sum(k2, k_ex),
-                                     momentum_sum(k1, k_ex), w_plus_w_ex(w2, w_ex),
-                                     w_plus_w_ex(w1, w_ex), -sign_over_2, true);
+                      updateG4Atomic(G4_ptr, s, momentum_sum(k2, k_ex), momentum_sum(k1, k_ex),
+                                     w_plus_w_ex(w2, w_ex), w_plus_w_ex(w1, w_ex), s, k1, k2, w1,
+                                     w2, -sign_over_2, true);
+                    /* updateG4Atomic(G4_ptr, s, k1, k2, w1, w2, s, momentum_sum(k2, k_ex), */
+                    /*                momentum_sum(k1, k_ex), w_plus_w_ex(w2, w_ex), */
+                    /*                w_plus_w_ex(w1, w_ex), -sign_over_2, true); */
                   }
           }
         }
@@ -447,7 +450,7 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
                     TpComplex* const G4_ptr = &G4(0, 0, 0, 0, k1, w1, k2, w2, k_ex_idx, w_ex_idx);
                     updateG4SpinDifference(G4_ptr, 1, k1, momentum_sum(k1, k_ex), w1,
                                            w_plus_w_ex(w1, w_ex), momentum_sum(k2, k_ex), k2,
-                                           w_plus_w_ex(w2, w_ex), w2, sign_over_2, false);
+                                           w_plus_w_ex(w2, w_ex), w2, sign_over_2);
                     for (int s = 0; s < 2; ++s)
                       updateG4Atomic(G4_ptr, s, k1, k2, w1, w2, s, momentum_sum(k2, k_ex),
                                      momentum_sum(k1, k_ex), w_plus_w_ex(w2, w_ex),
@@ -459,56 +462,56 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
         flops += n_loops * (flops_update_spin_diff + 2 * flops_update_atomic);
         break;
 
-      case FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_UP:
-        // G4(k1, k2, k_ex) = 1/2 sum_s <c^+(k1+k_ex, s) c(k1, s) c^+(k2, s) c(k2+k_ex, s)>
-        //                  = 1/2 sum_s [G(k1, k1+k_ex, s) G(k2+k_ex, k2, s)
-        //                               - G(k2+k_ex, k1+k_ex, s) G(k1, k2, s)]
-        for (int w_ex_idx = 0; w_ex_idx < exchange_frq.size(); ++w_ex_idx) {
-          const int w_ex = exchange_frq[w_ex_idx];
-          for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) {
-            const int k_ex = exchange_mom[k_ex_idx];
-            for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2)
-              for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2)
-                for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1)
-                  for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) {
-                    TpComplex* const G4_ptr = &G4(0, 0, 0, 0, k1, w1, k2, w2, k_ex_idx, w_ex_idx);
-
-                    for (int s = 0; s < 2; ++s)
-                      updateG4Atomic(G4_ptr, s, k1, momentum_sum(k1, k_ex), w1,
-                                     w_plus_w_ex(w1, w_ex), s, momentum_sum(k2, k_ex), k2,
-                                     w_plus_w_ex(w2, w_ex), w2, sign_over_2, false);
-
-                    for (int s = 0; s < 2; ++s)
-                      updateG4Atomic(G4_ptr, s, k1, k2, w1, w2, s, momentum_sum(k2, k_ex),
-                                     momentum_sum(k1, k_ex), w_plus_w_ex(w2, w_ex),
-                                     w_plus_w_ex(w1, w_ex), -sign_over_2, true);
-                  }
-          }
-        }
-        flops += n_loops * 4 * flops_update_atomic;
-        break;
-
-      case FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_DOWN:
-        // G4(k1, k2, k_ex) = 1/2 sum_s <c^+(k1+k_ex, s) c(k1, s) c^+(k2, -s) c(k2+k_ex, -s)>
-        //                  = 1/2 sum_s G(k1, k1+k_ex, s) G(k2+k_ex, k2, -s)
-        for (int w_ex_idx = 0; w_ex_idx < exchange_frq.size(); ++w_ex_idx) {
-          const int w_ex = exchange_frq[w_ex_idx];
-          for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) {
-            const int k_ex = exchange_mom[k_ex_idx];
-            for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2)
-              for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2)
-                for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1)
-                  for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) {
-                    TpComplex* const G4_ptr = &G4(0, 0, 0, 0, k1, w1, k2, w2, k_ex_idx, w_ex_idx);
-                    for (int s = 0; s < 2; ++s)
-                      updateG4Atomic(G4_ptr, s, k1, momentum_sum(k1, k_ex), w1,
-                                     w_plus_w_ex(w1, w_ex), !s, momentum_sum(k2, k_ex), k2,
-                                     w_plus_w_ex(w2, w_ex), w2, sign_over_2, false);
-                  }
-          }
-        }
-        flops += n_loops * 4 * flops_update_atomic;
-        break;
+        /* case FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_UP: */
+        /*   // G4(k1, k2, k_ex) = 1/2 sum_s <c^+(k1+k_ex, s) c(k1, s) c^+(k2, s) c(k2+k_ex, s)> */
+        /*   //                  = 1/2 sum_s [G(k1, k1+k_ex, s) G(k2+k_ex, k2, s) */
+        /*   //                               - G(k2+k_ex, k1+k_ex, s) G(k1, k2, s)] */
+        /*   for (int w_ex_idx = 0; w_ex_idx < exchange_frq.size(); ++w_ex_idx) { */
+        /*     const int w_ex = exchange_frq[w_ex_idx]; */
+        /*     for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) { */
+        /*       const int k_ex = exchange_mom[k_ex_idx]; */
+        /*       for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2) */
+        /*         for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2) */
+        /*           for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1) */
+        /*             for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) { */
+        /*               TpComplex* const G4_ptr = &G4(0, 0, 0, 0, k1, w1, k2, w2, k_ex_idx, w_ex_idx); */
+        /**/
+        /*               for (int s = 0; s < 2; ++s) */
+        /*                 updateG4Atomic(G4_ptr, s, k1, momentum_sum(k1, k_ex), w1, */
+        /*                                w_plus_w_ex(w1, w_ex), s, momentum_sum(k2, k_ex), k2, */
+        /*                                w_plus_w_ex(w2, w_ex), w2, sign_over_2, false); */
+        /**/
+        /*               for (int s = 0; s < 2; ++s) */
+        /*                 updateG4Atomic(G4_ptr, s, k1, k2, w1, w2, s, momentum_sum(k2, k_ex), */
+        /*                                momentum_sum(k1, k_ex), w_plus_w_ex(w2, w_ex), */
+        /*                                w_plus_w_ex(w1, w_ex), -sign_over_2, true); */
+        /*             } */
+        /*     } */
+        /*   } */
+        /*   flops += n_loops * 4 * flops_update_atomic; */
+        /*   break; */
+        /**/
+        /* case FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_DOWN: */
+        /*   // G4(k1, k2, k_ex) = 1/2 sum_s <c^+(k1+k_ex, s) c(k1, s) c^+(k2, -s) c(k2+k_ex, -s)> */
+        /*   //                  = 1/2 sum_s G(k1, k1+k_ex, s) G(k2+k_ex, k2, -s) */
+        /*   for (int w_ex_idx = 0; w_ex_idx < exchange_frq.size(); ++w_ex_idx) { */
+        /*     const int w_ex = exchange_frq[w_ex_idx]; */
+        /*     for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) { */
+        /*       const int k_ex = exchange_mom[k_ex_idx]; */
+        /*       for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2) */
+        /*         for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2) */
+        /*           for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1) */
+        /*             for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) { */
+        /*               TpComplex* const G4_ptr = &G4(0, 0, 0, 0, k1, w1, k2, w2, k_ex_idx, w_ex_idx); */
+        /*               for (int s = 0; s < 2; ++s) */
+        /*                 updateG4Atomic(G4_ptr, s, k1, momentum_sum(k1, k_ex), w1, */
+        /*                                w_plus_w_ex(w1, w_ex), !s, momentum_sum(k2, k_ex), k2, */
+        /*                                w_plus_w_ex(w2, w_ex), w2, sign_over_2, false); */
+        /*             } */
+        /*     } */
+        /*   } */
+        /*   flops += n_loops * 4 * flops_update_atomic; */
+        /*   break; */
 
       case FourPointType::PARTICLE_PARTICLE_UP_DOWN:
         // G4(k1, k2, k_ex) = 1/2 sum_s <c^+(k_ex-k1, s) c^+(k1, -s) c(k2, -s) c(k_ex-k2, s)>
@@ -599,8 +602,8 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
                 for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1)
                   for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) {
                     // contraction: G(k1, k1+k_ex, s2, s1) G(k2+k_ex, k2, s3, s4)
-                    getGMultiband(0, k1, q_plus_k(k1, k_ex), w1, w_plus_w_ex(w1, w_ex), G_a_);
-                    getGMultiband(0, q_plus_k(k2, k_ex), k2, w_plus_w_ex(w2, w_ex), w2, G_b_);
+                    getGMultiband(0, k1, q_plus_k(k1, k_ex), w1, w_plus_w_ex(w1, w_ex), G_a_);  // b2, b1
+                    getGMultiband(0, q_plus_k(k2, k_ex), k2, w_plus_w_ex(w2, w_ex), w2, G_b_);  // b3, b4
 
                     for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
                       for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
@@ -612,8 +615,8 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
 
                     // contraction: - G(k2+k_ex, k1+k_ex, s3, s1) G(k1, k2, s2, s4)
                     getGMultiband(0, q_plus_k(k2, k_ex), q_plus_k(k1, k_ex), w_plus_w_ex(w2, w_ex),
-                                  w_plus_w_ex(w1, w_ex), G_a_);
-                    getGMultiband(0, k1, k2, w1, w2, G_b_);
+                                  w_plus_w_ex(w1, w_ex), G_a_);  // b3, b1
+                    getGMultiband(0, k1, k2, w1, w2, G_b_);      // b2, b4
 
                     for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
                       for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
@@ -642,7 +645,7 @@ template <typename SpScalar>
 void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4Atomic(
     TpComplex* G4_ptr, const int s_a, const int k1_a, const int k2_a, const int w1_a,
     const int w2_a, const int s_b, const int k1_b, const int k2_b, const int w1_b, const int w2_b,
-    const SpScalar alpha, const bool cross_legs) {
+    const SpScalar alpha, const bool ph_channel) {
   // This function performs the following update for each band:
   //
   // G4(k1, k2, w1, w2) += alpha * G(s_a, k1_a, k2_a, w1_a, w2_a) * G(s_b, k1_b, k2_b, w1_b, w2_b)
@@ -656,7 +659,7 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4Atomic(
     getGMultiband(s_a, k1_a, k2_a, w1_a, w2_a, G_a_);
     getGMultiband(s_b, k1_b, k2_b, w1_b, w2_b, G_b_);
 
-    if (!cross_legs)
+    if (!ph_channel)
       for (int b4 = 0; b4 < n_bands_; ++b4)
         for (int b3 = 0; b3 < n_bands_; ++b3)
           for (int b2 = 0; b2 < n_bands_; ++b2)
@@ -675,7 +678,7 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4Atomic(
             for (int b1 = 0; b1 < n_bands_; ++b1) {
               TpComplex tcomp_alpha{0.0, 0.0};
               tcomp_alpha += alpha;
-              auto Gprod = G_a_(b1, b4) * G_b_(b2, b3);
+              auto Gprod = G_a_(b3, b1) * G_b_(b2, b4);
               *G4_ptr += tcomp_alpha * Gprod;  // G_a_(b1, b3) * G_b_(b2, b4);
 
               //*G4_ptr += alpha * G_a_(b1, b4) * G_b_(b2, b3);
@@ -690,7 +693,7 @@ template <typename SpScalar, typename SignType>
 void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4SpinDifference(
     TpComplex* G4_ptr, const SignType factor, const int k1_a, const int k2_a, const int w1_a,
     const int w2_a, const int k1_b, const int k2_b, const int w1_b, const int w2_b,
-    const SpScalar alpha, const bool cross_legs) {
+    const SpScalar alpha) {
   // This function performs the following update for each band:
   //
   // G4(k1, k2, w1, w2) += alpha * [G(up, k1_a, k2_a, w1_a, w2_a)
@@ -710,22 +713,22 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4SpinDifference(
     getGMultiband(0, k1_b, k2_b, w1_b, w2_b, G_b_);
     getGMultiband(1, k1_b, k2_b, w1_b, w2_b, G_b_, factor);
 
-    if (!cross_legs)
-      for (int b4 = 0; b4 < n_bands_; ++b4)
-        for (int b3 = 0; b3 < n_bands_; ++b3)
-          for (int b2 = 0; b2 < n_bands_; ++b2)
-            for (int b1 = 0; b1 < n_bands_; ++b1) {
-              *G4_ptr += alpha * G_a_(b1, b3) * G_b_(b2, b4);
-              ++G4_ptr;
-            }
-    else
-      for (int b4 = 0; b4 < n_bands_; ++b4)
-        for (int b3 = 0; b3 < n_bands_; ++b3)
-          for (int b2 = 0; b2 < n_bands_; ++b2)
-            for (int b1 = 0; b1 < n_bands_; ++b1) {
-              *G4_ptr += alpha * G_a_(b1, b4) * G_b_(b2, b3);
-              ++G4_ptr;
-            }
+    /* if (!cross_legs) */
+    for (int b4 = 0; b4 < n_bands_; ++b4)
+      for (int b3 = 0; b3 < n_bands_; ++b3)
+        for (int b2 = 0; b2 < n_bands_; ++b2)
+          for (int b1 = 0; b1 < n_bands_; ++b1) {
+            *G4_ptr += alpha * G_a_(b2, b1) * G_b_(b3, b4);
+            ++G4_ptr;
+          }
+    /* else */
+    /*   for (int b4 = 0; b4 < n_bands_; ++b4) */
+    /*     for (int b3 = 0; b3 < n_bands_; ++b3) */
+    /*       for (int b2 = 0; b2 < n_bands_; ++b2) */
+    /*         for (int b1 = 0; b1 < n_bands_; ++b1) { */
+    /*           *G4_ptr += alpha * G_a_(b1, b4) * G_b_(b2, b3); */
+    /*           ++G4_ptr; */
+    /*         } */
   }
 }
 
