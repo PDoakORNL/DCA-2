@@ -89,8 +89,7 @@ TYPED_TEST(TpAccumulatorGpuTest, Accumulate) {
   using namespace dca::phys;
   std::vector<FourPointType> four_point_channels{
       FourPointType::PARTICLE_HOLE_TRANSVERSE, FourPointType::PARTICLE_HOLE_MAGNETIC,
-      FourPointType::PARTICLE_HOLE_CHARGE, FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_UP,
-      FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_DOWN, FourPointType::PARTICLE_PARTICLE_UP_DOWN};
+      FourPointType::PARTICLE_HOLE_CHARGE, FourPointType::PARTICLE_PARTICLE_UP_DOWN};
   this->host_setup.parameters_.set_four_point_channels(four_point_channels);
   this->gpu_setup.parameters_.set_four_point_channels(four_point_channels);
 
