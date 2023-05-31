@@ -619,7 +619,6 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4Atomic(
   if (n_bands_ == 1) {
     auto g_1 = getGSingleband(s_a, k1_a, k2_a, w1_a, w2_a);
     auto g_2 = getGSingleband(s_b, k1_b, k2_b, w1_b, w2_b);
-    
     *G4_ptr += alpha * g_1 * g_2; //getGSingleband(s_a, k1_a, k2_a, w1_a, w2_a) *
     //getGSingleband(s_b, k1_b, k2_b, w1_b, w2_b);
   }
