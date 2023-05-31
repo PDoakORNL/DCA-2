@@ -136,8 +136,16 @@ public:
     return &mock_stream;
   }
 
-protected:
+  // The following are public just to allow more granular testing.
+  // in the normal application loop there are called by the accumulate method.
+  template <class Configuration, typename SpScalar>
+  double computeM(const std::array<linalg::Matrix<SpScalar, linalg::CPU>, 2>& M_pair,
+                 const std::array<Configuration, 2>& configs);
+
   double computeG();
+
+  const auto& getG() { return G_; }
+protected:
 
   void computeGMultiband(int s, int k1, int k2, int w1, int w2);
 
@@ -150,10 +158,6 @@ protected:
   void getGMultiband(int s, int k1, int k2, int w1, int w2, Matrix& G, TpComplex beta = 0) const;
 
   auto getGSingleband(int s, int k1, int k2, int w1, int w2) -> TpComplex const;
-
-  template <class Configuration, typename SpScalar>
-  float computeM(const std::array<linalg::Matrix<SpScalar, linalg::CPU>, 2>& M_pair,
-                 const std::array<Configuration, 2>& configs);
 
   template <typename SignType>
   double updateG4(int channel_index, SignType factor);
@@ -229,10 +233,10 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::accumulate(
 
 template <class Parameters, DistType DT>
 template <class Configuration, typename SpScalar>
-float TpAccumulator<Parameters, DT, linalg::CPU>::computeM(
+double TpAccumulator<Parameters, DT, linalg::CPU>::computeM(
     const std::array<linalg::Matrix<SpScalar, linalg::CPU>, 2>& M_pair,
     const std::array<Configuration, 2>& configs) {
-  float flops = 0.;
+  double flops = 0.;
 
   func::function<TpComplex, func::dmn_variadic<RDmn, RDmn, BDmn, BDmn, SDmn, WTpExtPosDmn, WTpExtDmn>>
       M_r_r_w_w;
@@ -613,8 +617,11 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4Atomic(
   //
   // INTERNAL: would use __restrict__ pointer make sense?
   if (n_bands_ == 1) {
-    *G4_ptr += alpha * getGSingleband(s_a, k1_a, k2_a, w1_a, w2_a) *
-               getGSingleband(s_b, k1_b, k2_b, w1_b, w2_b);
+    auto g_1 = getGSingleband(s_a, k1_a, k2_a, w1_a, w2_a);
+    auto g_2 = getGSingleband(s_b, k1_b, k2_b, w1_b, w2_b);
+    
+    *G4_ptr += alpha * g_1 * g_2; //getGSingleband(s_a, k1_a, k2_a, w1_a, w2_a) *
+    //getGSingleband(s_b, k1_b, k2_b, w1_b, w2_b);
   }
   else {
     getGMultiband(s_a, k1_a, k2_a, w1_a, w2_a, G_a_);
@@ -640,7 +647,7 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4Atomic(
               TpComplex tcomp_alpha{0.0, 0.0};
               tcomp_alpha += alpha;
               auto Gprod = G_a_(b3, b1) * G_b_(b2, b4);
-              *G4_ptr += tcomp_alpha * Gprod;  // G_a_(b1, b3) * G_b_(b2, b4);
+              *G4_ptr += tcomp_alpha * Gprod;  // G_a_(b3, b1) * G_b_(b2, b4);
               assert(!(std::isnan(G4_ptr->real()) || std::isnan(G4_ptr->imag())));
               ++G4_ptr;
             }
@@ -659,7 +666,6 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::updateG4SpinDifference(
   //                                + sign * G(down,k1_a, k2_a, w1_a, w2_a)]
   //                             * [G(up, k1_b, k2_b, w1_b, w2_b)
   //                               + sign * G(down, k1_b, k2_b, w1_b, w2_b)]
-
   if (n_bands_ == 1) {
     *G4_ptr += alpha *
                (getGSingleband(0, k1_a, k2_a, w1_a, w2_a) +

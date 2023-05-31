@@ -66,7 +66,7 @@ public:
   using ThisType = TpAccumulator<Parameters, DT, linalg::GPU>;
   using typename Base::TpPrecision;
   using typename Base::TpComplex;
-  
+
   using RDmn = typename Base::RDmn;
   using KDmn = typename Base::KDmn;
   using NuDmn = typename Base::NuDmn;
@@ -83,6 +83,8 @@ public:
 
   using TpDomain =
       func::dmn_variadic<BDmn, BDmn, BDmn, BDmn, KDmn, KDmn, KExchangeDmn, WTpDmn, WTpDmn, WExchangeDmn>;
+  using typename BaseGpu::RMatrix;
+  using typename BaseGpu::RMatrixValueType;
 
 protected:
   using BaseGpu::queues_;
@@ -92,22 +94,19 @@ protected:
   using BaseGpu::space_trsf_objs_;
   using BaseGpu::nr_accumulators_;
   using BaseGpu::event_;
-  using typename BaseGpu::RMatrix;
-  using typename BaseGpu::RMatrixValueType;
 
 public:
   // Constructor:
   // In: G0: non interacting greens function.
   // In: pars: parameters object.
   // In: thread_id: thread id, only used by the profiler.
-  TpAccumulator(
-      const func::function<TpComplex, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G0,
-      const Parameters& pars, int thread_id = 0);
+  TpAccumulator(const func::function<TpComplex, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G0,
+                const Parameters& pars, int thread_id = 0);
 
   // Resets the object between DCA iterations.
   void resetAccumulation(unsigned int dca_loop);
 
-    // Resets the object between DCA iterations.
+  // Resets the object between DCA iterations.
   void resetAccumulation(unsigned int dca_loop, dca::util::OncePerLoopFlag&);
 
   // Computes the two particles Greens function from the M matrix and accumulates it internally.
@@ -118,12 +117,12 @@ public:
 
   template <class Configuration, typename SpScalar, typename SignType>
   double accumulate(const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M,
-                   const std::array<Configuration, 2>& configs, const SignType factor);
+                    const std::array<Configuration, 2>& configs, const SignType factor);
 
   // CPU input. For testing purposes.
   template <class Configuration, typename SpScalar, typename SignType>
   double accumulate(const std::array<linalg::Matrix<SpScalar, linalg::CPU>, 2>& M,
-                   const std::array<Configuration, 2>& configs, const SignType factor);
+                    const std::array<Configuration, 2>& configs, const SignType factor);
 
   // Downloads the accumulation result to the host.
   void finalize();
@@ -168,7 +167,8 @@ public:
   }
 
   // Returns the accumulated Green's function.
-  const std::vector<typename TpAccumulator<Parameters, DT, linalg::GPU>::Base::TpGreensFunction>& get_G4() const;
+  const std::vector<typename TpAccumulator<Parameters, DT, linalg::GPU>::Base::TpGreensFunction>& get_G4()
+      const;
 
   // FOR TESTING: Returns the accumulated Green's function.
   std::vector<TpGreensFunction>& get_nonconst_G4();
@@ -177,7 +177,20 @@ public:
   // Returns the accumulated Green's function.
   static inline std::vector<G4DevType>& get_G4Dev();
 
-  void set_multiple_accumulators(bool have_multiple_accumulators) { multiple_accumulators_ = true; }
+  void set_multiple_accumulators(bool have_multiple_accumulators) {
+    multiple_accumulators_ = true;
+  }
+
+  // The following are public just to allow more granular testing.
+  // in the normal application loop there are called by the accumulate method.
+  template <class Configuration, typename SpScalar>
+  double computeM(const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M_pair,
+                  const std::array<Configuration, 2>& configs);
+
+  void computeG();
+
+  //void synchronizeStreams();
+  const RMatrix& getG(int spin) { return G_[spin]; }
 protected:
   using typename BaseGpu::Matrix;
   using typename BaseGpu::MatrixHost;
@@ -187,7 +200,7 @@ protected:
   using Base::G4_;
   using Base::multiple_accumulators_;
   using Base::n_bands_;
-  //using Base::n_pos_frqs_;
+  // using Base::n_pos_frqs_;
 
   using Base::non_density_density_;
   using Base::thread_id_;
@@ -202,8 +215,6 @@ protected:
   void initializeG0();
   void resetG4();
 
-  void computeG();
-
   void computeGMultiband(int s);
 
   void computeGSingleband(int s);
@@ -211,7 +222,6 @@ protected:
   template <typename SignType>
   double updateG4(const std::size_t channel_index, SignType factor);
 
-  void synchronizeStreams();
 #ifdef DCA_HAVE_MPI
   struct RingMessage {
     int target;
@@ -219,10 +229,16 @@ protected:
     MPI_Request request;
   };
 
-  std::array<RingMessage, 2> recv_requests_{RingMessage{-1, -1, MPI_REQUEST_NULL},
-                                            RingMessage{-1, -1, MPI_REQUEST_NULL}};
-  std::array<RingMessage, 2> send_requests_{RingMessage{-1, -1, MPI_REQUEST_NULL},
-RingMessage{-1, -1, MPI_REQUEST_NULL}};
+  std::array<RingMessage, 2> recv_requests_{RingMessage{-1, -1, MPI_REQUEST_NULL}, RingMessage {
+                                              -1,
+                                              -1,
+                                              MPI_REQUEST_NULL
+                                            }};
+  std::array<RingMessage, 2> send_requests_{RingMessage{-1, -1, MPI_REQUEST_NULL}, RingMessage {
+                                              -1,
+                                              -1,
+                                              MPI_REQUEST_NULL
+                                            }};
   // For distributed G4's
   // Applies pipepline ring algorithm to move G matrices around all ranks
   template <typename SignType>
@@ -243,13 +259,13 @@ RingMessage{-1, -1, MPI_REQUEST_NULL}};
 
 template <class Parameters, DistType DT>
 TpAccumulator<Parameters, DT, linalg::GPU>::TpAccumulator(
-							  const func::function<TpComplex, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G0,
+    const func::function<TpComplex, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G0,
     const Parameters& pars, const int thread_id)
-  : Base(G0, pars, thread_id), BaseGpu(G0, pars, WTpExtDmn::dmn_size(), thread_id) {}
+    : Base(G0, pars, thread_id), BaseGpu(G0, pars, WTpExtDmn::dmn_size(), thread_id) {}
 
 template <class Parameters, DistType DT>
-void TpAccumulator<Parameters, DT, linalg::GPU>::resetAccumulation(const unsigned int dca_loop, dca::util::OncePerLoopFlag& flag) {
-
+void TpAccumulator<Parameters, DT, linalg::GPU>::resetAccumulation(const unsigned int dca_loop,
+                                                                   dca::util::OncePerLoopFlag& flag) {
   dca::util::callOncePerLoop(flag, dca_loop, [&]() {
     resetG4();
     BaseGpu::initializeG0();
@@ -315,6 +331,8 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::accumulate(
   flop += BaseGpu::computeM(M, configs);
   computeG();
 
+  BaseGpu::synchronizeStreams();
+  
   for (int channel_index = 0; channel_index < G4_.size(); ++channel_index) {
     flop += updateG4(channel_index, factor);
   }
@@ -340,6 +358,16 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::accumulate(
 }
 
 template <class Parameters, DistType DT>
+template <class Configuration, typename SpScalar>
+double TpAccumulator<Parameters, DT, linalg::GPU>::computeM(
+    const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M_pair,
+    const std::array<Configuration, 2>& configs) {
+  double flop = 0;
+  flop += BaseGpu::computeM(M_pair, configs);
+  return flop;
+}
+
+template <class Parameters, DistType DT>
 void TpAccumulator<Parameters, DT, linalg::GPU>::computeG() {
   if (n_ndft_queues_ == 1) {
     event_.record(queues_[0]);
@@ -355,8 +383,13 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::computeG() {
     }
   }
 
-  event_.record(queues_[1]);
-  event_.block(queues_[0]);
+  if (n_ndft_queues_ == 1) {
+    event_.record(queues_[1]);
+    event_.block(queues_[0]);
+  }
+    // event_.record(queues_[0]);
+    // event_.block(queues_[1]);
+  
 }
 
 template <class Parameters, DistType DT>
@@ -376,7 +409,8 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::computeGMultiband(const int s) 
 
 template <class Parameters, DistType DT>
 template <typename SignType>
-double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t channel_index, SignType factor) {
+double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t channel_index,
+                                                            SignType factor) {
   // G4 is stored with the following band convention:
   // b1 ------------------------ b3
   //        |           |
@@ -404,16 +438,6 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t ch
 
     case FourPointType::PARTICLE_HOLE_CHARGE:
       return details::updateG4<TpComplex, FourPointType::PARTICLE_HOLE_CHARGE>(
-          get_G4Dev()[channel_index].ptr(), G_[0].ptr(), G_[0].leadingDimension(), G_[1].ptr(),
-          G_[1].leadingDimension(), factor, multiple_accumulators_, queues_[0], start, end);
-
-    case FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_UP:
-      return details::updateG4<TpComplex, FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_UP>(
-          get_G4Dev()[channel_index].ptr(), G_[0].ptr(), G_[0].leadingDimension(), G_[1].ptr(),
-          G_[1].leadingDimension(), factor, multiple_accumulators_, queues_[0], start, end);
-
-    case FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_DOWN:
-      return details::updateG4<TpComplex, FourPointType::PARTICLE_HOLE_LONGITUDINAL_UP_DOWN>(
           get_G4Dev()[channel_index].ptr(), G_[0].ptr(), G_[0].leadingDimension(), G_[1].ptr(),
           G_[1].leadingDimension(), factor, multiple_accumulators_, queues_[0], start, end);
 
@@ -475,7 +499,6 @@ std::vector<typename TpAccumulator<Parameters, DT, linalg::GPU>::TpGreensFunctio
     throw std::logic_error("There is no G4 stored in this class.");
   return G4_;
 }
-
 
 #ifdef DCA_HAVE_MPI
 
@@ -547,7 +570,7 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::send(const std::array<RMatrix, 
   for (int s = 0; s < 2; ++s) {
     sendbuffer_[s].resize(g_size);
     checkRC(cudaMemcpy(sendbuffer_[s].data(), data[s].ptr(), g_size * sizeof(TpComplex),
-		       cudaMemcpyDeviceToHost));
+                       cudaMemcpyDeviceToHost));
 
     MPI_Isend(sendbuffer_[s].data(), g_size, MPITypeMap<TpComplex>::value(), messages[s].target,
               thread_id_ + 1, MPI_COMM_WORLD, &(messages[s].request));
@@ -579,7 +602,7 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::receive(std::array<RMatrix, 2>&
     MPI_Wait(&(messages[s].request), MPI_STATUSES_IGNORE);
     // Note: MPI can not access host memory allocated from CUDA, hence the usage of blocking communication.
     checkRC(cudaMemcpy(data[s].ptr(), recvbuffer_[s].data(), g_size * sizeof(TpComplex),
-		       cudaMemcpyHostToDevice));
+                       cudaMemcpyHostToDevice));
   }
 #endif  // DCA_HAVE_GPU_AWARE_MPI
 }

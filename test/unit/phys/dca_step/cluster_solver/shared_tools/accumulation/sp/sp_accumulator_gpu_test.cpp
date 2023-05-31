@@ -66,6 +66,8 @@ TYPED_TEST(SpAccumulatorGpuTest, Accumulate) {
                                                 accumulatorDevice.get_sign_times_M_r_w());
 
   EXPECT_GT(500 * std::numeric_limits<typename Parameters::Real>::epsilon(), diff.l_inf);
+
+  
 }
 
 TYPED_TEST(SpAccumulatorGpuTest, SumTo) {

@@ -74,12 +74,12 @@ public:
   using WExchangeDmn = func::dmn_0<domains::FrequencyExchangeDomain>;
 
   using TpGreensFunction = typename DcaData<Parameters, DT>::TpGreensFunction;
+  using SpGreensFunction =
+      func::function<TpComplex, func::dmn_variadic<BDmn, BDmn, SDmn, KDmn, KDmn, WTpExtPosDmn, WTpExtDmn>>;
   
 protected:
   using Profiler = typename Parameters::profiler_type;
 
-  using SpGreenFunction =
-      func::function<TpComplex, func::dmn_variadic<BDmn, BDmn, SDmn, KDmn, KDmn, WTpExtPosDmn, WTpExtDmn>>;
 
 public:
   // Constructor:
@@ -172,7 +172,7 @@ protected:
     models::HasInitializeNonDensityInteractionMethod<Parameters>::value;
   //CachedNdft<Scalar, RDmn, WTpExtDmn, WTpExtPosDmn, linalg::CPU, non_density_density_> ndft_obj_;
 
-  SpGreenFunction G_;
+  SpGreensFunction G_;
 
   std::vector<TpGreensFunction> G4_;
   std::vector<FourPointType> channels_;

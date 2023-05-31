@@ -83,14 +83,14 @@ public:
       const func::function<TpComplex, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G0,
       const Parameters& pars, int n_freq, int thread_id);
 
+  template <class Configuration, typename SpScalar>
+  double computeM(const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M_pair,
+                 const std::array<Configuration, 2>& configs);
+
+  void synchronizeStreams();
 protected:
   void initializeG4Helpers() const;
-  void synchronizeStreams();
   void initializeG0();
-
-  template <class Configuration, typename SpScalar>
-  float computeM(const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M_pair,
-                 const std::array<Configuration, 2>& configs);
 
   void sumTo_(TpAccumulatorGpuBase<Parameters, DT>& other_acc);
 
@@ -108,7 +108,7 @@ protected:
   // this is how this is defined in the all tp_accumulator_gpu, suspect?
   constexpr static bool non_density_density_ =
     models::HasInitializeNonDensityInteractionMethod<Parameters>::value;
-  CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtPosDmn, linalg::CPU, non_density_density_> ndft_obj_;
+  CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtDmn, linalg::CPU, non_density_density_> ndft_obj_;
 
   using NdftType = CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtDmn, linalg::GPU, non_density_density_>;
   std::array<NdftType, 2> ndft_objs_;
@@ -206,12 +206,12 @@ void TpAccumulatorGpuBase<Parameters, DT>::initializeG0() {
 
 template <class Parameters, DistType DT>
 template <class Configuration, typename SpScalar>
-float TpAccumulatorGpuBase<Parameters, DT>::computeM(
+double TpAccumulatorGpuBase<Parameters, DT>::computeM(
     const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M_pair,
     const std::array<Configuration, 2>& configs) {
   auto stream_id = [&](const int s) { return n_ndft_queues_ == 1 ? 0 : s; };
 
-  float flop = 0.;
+  double flop = 0.;
 
   {
     [[maybe_unused]] Profiler prf("Frequency FT: HOST", "tp-accumulation", __LINE__, thread_id_);
