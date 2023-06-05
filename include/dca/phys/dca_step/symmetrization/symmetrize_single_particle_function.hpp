@@ -85,8 +85,8 @@ std::enable_if_t<HasTimeOrFrequencySymmetrySpecial<Parameters>::value> timeOrFre
 template <class Parameters, class FNEW, typename KVECS>
 std::enable_if_t<!HasTimeOrFrequencySymmetrySpecial<Parameters>::value> timeOrFrequencySymmetrySpecial(
     [[maybe_unused]] dca::phys::domains::CLUSTER_REPRESENTATION cr, [[maybe_unused]] FNEW& f_new,
-    [[maybe_unused]] KVECS& k_vecs, [[maybe_unused]] int c_ind, [[maybe_unused]] int w_ind, [[maybe_unused]] int w_0) {
-}
+    [[maybe_unused]] KVECS& k_vecs, [[maybe_unused]] int c_ind, [[maybe_unused]] int w_ind,
+    [[maybe_unused]] int w_0) {}
 
 template <class Pars>
 class HasClusterSymmetrySpecial {
@@ -103,8 +103,7 @@ public:
 template <class Parameters>
 std::enable_if_t<HasClusterSymmetrySpecial<Parameters>::value> clusterSymmetrySpecial(
     int b0, int b1, int k_ind, int& k_new, int& b0_new, int& b1_new, double& sign) {
-  Parameters::lattice_type::clusterSymmetrySpecial(b0, b1, k_ind, k_new,
-                                                   b0_new, b1_new, sign);
+  Parameters::lattice_type::clusterSymmetrySpecial(b0, b1, k_ind, k_new, b0_new, b1_new, sign);
 }
 
 template <class Parameters>
@@ -177,6 +176,10 @@ private:
 
   template <typename Scalar, typename FDmn0, typename FDmn1>
   static void symmetrize_over_electron_spin(
+      func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, FDmn0, FDmn1>>& f, bool do_diff);
+
+  template <typename Scalar, typename FDmn0, typename FDmn1>
+  static void symmetrizeSpecial(
       func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, FDmn0, FDmn1>>& f, bool do_diff);
 
   template <typename Scalar, typename scalar_type, int D, domains::CLUSTER_NAMES N, domains::CLUSTER_SHAPE S>
@@ -331,6 +334,11 @@ void SymmetrizeSingleParticleFunction<Parameters>::execute(
     symmetrize_over_electron_spin(f, do_diff);
   }
 
+  // if (f.get_name() != "cluster_greens_function_G_k_w") {
+  // std::cout << "In Symmetrize::execute, symmetrizing function " << f.get_name() <<  "\n";
+
+  symmetrizeSpecial(f, do_diff);
+  // }
   // Symmetrize over real space or momentum.
   func::function<Scalar, func::dmn_variadic<BDmn, BDmn, FDmn0>> f0(f.get_name());
 
@@ -392,6 +400,54 @@ void SymmetrizeSingleParticleFunction<Parameters>::symmetrize_over_electron_spin
           f(i, 1, j, 1, ind_0, ind_1) = tmp;
         }
       }
+    }
+  }
+}
+
+template <class Parameters>
+template <typename Scalar, typename FDmn0, typename FDmn1>
+void SymmetrizeSingleParticleFunction<Parameters>::symmetrizeSpecial(
+    func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, FDmn0, FDmn1>>& f, bool /*do_diff*/) {
+  /* std::cout << "In SymmetrizeSpecial, symmetrizing function " << f.get_name() << "\n"; */
+
+  for (int ind_1 = 0; ind_1 < FDmn1::dmn_size(); ind_1++) {
+    for (int ind_0 = 0; ind_0 < FDmn0::dmn_size(); ind_0++) {
+      // for (int i = 0; i < BDmn::dmn_size(); i++) {
+      //   for (int j = 0; j < BDmn::dmn_size(); j++) {
+      //     f(i, 1, j, 1, ind_0, ind_1) = 0;
+      //     f(i, 1, j, 0, ind_0, ind_1) = 0;
+      //     f(i, 0, j, 1, ind_0, ind_1) = 0;
+      //   }
+      // }
+
+      // if (abs(f(0, 0, 0, 0, ind_0, ind_1) - f(3, 0, 3, 0, ind_0, ind_1)) > 1.0e-5)
+      //   std::cout << abs(f(0, 0, 0, 0, ind_0, ind_1) - f(3, 0, 3, 0, ind_0, ind_1)) << "  in
+      //   function " << f.get_name() << "\n";
+      Scalar tmpAup = (f(0, 0, 0, 0, ind_0, ind_1) + f(3, 0, 3, 0, ind_0, ind_1)) / 2.;
+      Scalar tmpAdn = (f(1, 0, 1, 0, ind_0, ind_1) + f(2, 0, 2, 0, ind_0, ind_1)) / 2.;
+
+      f(0, 0, 0, 0, ind_0, ind_1) = tmpAup;
+      f(1, 0, 1, 0, ind_0, ind_1) = tmpAdn;
+      f(2, 0, 2, 0, ind_0, ind_1) = tmpAdn;
+      f(3, 0, 3, 0, ind_0, ind_1) = tmpAup;
+
+      // Also set the inter-orbital AB (non-local) terms to zero
+      f(0, 0, 1, 0, ind_0, ind_1) = 0;
+      f(1, 0, 0, 0, ind_0, ind_1) = 0;
+      f(2, 0, 3, 0, ind_0, ind_1) = 0;
+      f(3, 0, 2, 0, ind_0, ind_1) = 0;
+
+      // Intra-orbital AA, BB , opposite spin
+      f(0, 0, 2, 0, ind_0, ind_1) = 0;
+      f(2, 0, 0, 0, ind_0, ind_1) = 0;
+      f(1, 0, 3, 0, ind_0, ind_1) = 0;
+      f(3, 0, 1, 0, ind_0, ind_1) = 0;
+
+      // Inter-orbital AB, BA , opposite spin
+      f(0, 0, 3, 0, ind_0, ind_1) = 0;
+      f(3, 0, 0, 0, ind_0, ind_1) = 0;
+      f(1, 0, 2, 0, ind_0, ind_1) = 0;
+      f(2, 0, 1, 0, ind_0, ind_1) = 0;
     }
   }
 }
@@ -798,8 +854,7 @@ void SymmetrizeSingleParticleFunction<Parameters>::executeCluster(
           double sign = Lattice::transformationSignOfK(b0, b1, s_ind);
           norm += std::abs(sign);
 
-          clusterSymmetrySpecial<Parameters>(b0, b1, k_ind, k_new, b0_new,
-                                             b1_new, sign);
+          clusterSymmetrySpecial<Parameters>(b0, b1, k_ind, k_new, b0_new, b1_new, sign);
 
           f_new(b0, b1, k_ind) += sign * f(b0_new, b1_new, k_new);
         }
