@@ -415,14 +415,7 @@ else()
   set(TP_ACCUMULATION_PRECISION double)
 endif()
 
-
-option(DCA_WITH_MANAGED_MEMORY "Use managed memory allocator." OFF)
-mark_as_advanced(DCA_WITH_MANAGED_MEMORY)
-if (DCA_WITH_MANAGED_MEMORY)
-  set(TWO_PARTICLE_ALLOCATOR "dca::linalg::util::ManagedAllocator<T>")
-else()
-  set(TWO_PARTICLE_ALLOCATOR "dca::linalg::util::DeviceAllocator<T>")
-endif()
+set(TWO_PARTICLE_ALLOCATOR "dca::linalg::util::DeviceAllocator<T>")
 
 configure_file("${PROJECT_SOURCE_DIR}/include/dca/config/mc_options.hpp.in"
         "${CMAKE_BINARY_DIR}/include/dca/config/mc_options.hpp" @ONLY)
