@@ -173,7 +173,7 @@ public:
   // FOR TESTING: Returns the accumulated Green's function.
   std::vector<TpGreensFunction>& get_nonconst_G4();
 
-  using G4DevType = linalg::Vector<TpComplex, linalg::GPU, config::McOptions::TpAllocator<TpComplex>>;
+  using G4DevType = linalg::Vector<TpComplex, linalg::GPU, typename BaseGpu::TpAllocator<TpComplex>>;
   // Returns the accumulated Green's function.
   static inline std::vector<G4DevType>& get_G4Dev();
 
@@ -221,6 +221,9 @@ protected:
 
   template <typename SignType>
   double updateG4(const std::size_t channel_index, SignType factor);
+
+  template <typename SignType>
+  double updateG4NoSpinSymm(const std::size_t channel_index, SignType factor);
 
 #ifdef DCA_HAVE_MPI
   struct RingMessage {
@@ -334,7 +337,10 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::accumulate(
   BaseGpu::synchronizeStreams();
   
   for (int channel_index = 0; channel_index < G4_.size(); ++channel_index) {
-    flop += updateG4(channel_index, factor);
+    if constexpr (Base::spin_symmetric_)
+      flop += updateG4(channel_index, factor);
+    else
+      flop += updateG4NoSpinSymm(channel_index, factor);
   }
 
 #ifdef DCA_HAVE_MPI
@@ -450,6 +456,51 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t ch
       throw std::logic_error("Specified four point type not implemented by tp_accumulator_gpu.");
   }
 }
+
+template <class Parameters, DistType DT>
+template <typename SignType>
+double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4NoSpinSymm(const std::size_t channel_index,
+                                                            SignType factor) {
+  // G4 is stored with the following band convention:
+  // b1 ------------------------ b3
+  //        |           |
+  //        |           |
+  //        |           |
+  // b2 ------------------------ b4
+
+  //  TODO: set stream only if this thread gets exclusive access to G4.
+  //  get_G4().setStream(queues_[0]);
+  const FourPointType channel = Base::channels_[channel_index];
+
+  uint64_t start = Base::G4_[0].get_start();
+  uint64_t end =
+      Base::G4_[0].get_end() + 1;  // because the kernel expects this to be one past the end index
+  switch (channel) {
+    case FourPointType::PARTICLE_HOLE_TRANSVERSE:
+      return details::updateG4NoSpinSymm<TpComplex, FourPointType::PARTICLE_HOLE_TRANSVERSE>(
+          get_G4Dev()[channel_index].ptr(), G_[0].ptr(), G_[0].leadingDimension(), G_[1].ptr(),
+          G_[1].leadingDimension(), factor, multiple_accumulators_, queues_[0], start, end);
+
+    case FourPointType::PARTICLE_HOLE_MAGNETIC:
+      return details::updateG4NoSpinSymm<TpComplex, FourPointType::PARTICLE_HOLE_MAGNETIC>(
+          get_G4Dev()[channel_index].ptr(), G_[0].ptr(), G_[0].leadingDimension(), G_[1].ptr(),
+          G_[1].leadingDimension(), factor, multiple_accumulators_, queues_[0], start, end);
+
+    case FourPointType::PARTICLE_HOLE_CHARGE:
+      return details::updateG4NoSpinSymm<TpComplex, FourPointType::PARTICLE_HOLE_CHARGE>(
+          get_G4Dev()[channel_index].ptr(), G_[0].ptr(), G_[0].leadingDimension(), G_[1].ptr(),
+          G_[1].leadingDimension(), factor, multiple_accumulators_, queues_[0], start, end);
+
+    case FourPointType::PARTICLE_PARTICLE_UP_DOWN:
+      return details::updateG4NoSpinSymm<TpComplex, FourPointType::PARTICLE_PARTICLE_UP_DOWN>(
+          get_G4Dev()[channel_index].ptr(), G_[0].ptr(), G_[0].leadingDimension(), G_[1].ptr(),
+          G_[1].leadingDimension(), factor, multiple_accumulators_, queues_[0], start, end);
+
+    default:
+      throw std::logic_error("Specified four point type not implemented by tp_accumulator_gpu for no spin symmetry.");
+  }
+}
+
 
 template <class Parameters, DistType DT>
 void TpAccumulator<Parameters, DT, linalg::GPU>::finalize() {

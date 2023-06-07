@@ -27,31 +27,65 @@ namespace phys {
 
 // Computes the free Matsubara Green's function G_0(\vec{k}, i\omega_n) from the non-interacting
 // Hamiltonian H_0(\vec{k}).
-template <typename Scalar, typename OrbitalSpinDmn, typename KDmn, typename MatsubaraFreqDmn>
+template <typename Scalar, typename OrbitalSpinDmn, typename KDmn, typename MatsubaraFreqDmn, typename = typename std::enable_if<std::is_floating_point<Scalar>::value, void>::type>
 void compute_G0_k_w(
-    const func::function<std::complex<dca::util::RealAlias<Scalar>>,
+		    const func::function<dca::util::ComplexAlias<Scalar>,
                          func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn>>& H0_k,
     const Scalar mu, const int n_threads,
-    func::function<std::complex<dca::util::RealAlias<Scalar>>,
+		    func::function<dca::util::ComplexAlias<Scalar>,
                    func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, MatsubaraFreqDmn>>& G0_k_w) {
   // Call compute_G_k_w with vanishing self-energy.
-  const func::function<std::complex<dca::util::RealAlias<Scalar>>,
+  const func::function<dca::util::ComplexAlias<Scalar>,
+                       func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, MatsubaraFreqDmn>>
+      zero;
+  // If H0_k and zero types fail to match template template deduction will fail!
+  compute_G_k_w(H0_k, zero, mu, n_threads, G0_k_w);
+}
+
+  template <typename Scalar, typename OrbitalSpinDmn, typename KDmn, typename MatsubaraFreqDmn, dca::util::IsComplex<Scalar> = true>
+void compute_G0_k_w(
+		    const func::function<Scalar,
+                         func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn>>& H0_k,
+    const dca::util::RealAlias<Scalar> mu, const int n_threads,
+		    func::function<Scalar,
+		    func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, MatsubaraFreqDmn>>& G0_k_w, dca::util::IsComplex<Scalar>) {
+  // Call compute_G_k_w with vanishing self-energy.
+  const func::function<Scalar,
                        func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, MatsubaraFreqDmn>>
       zero;
   compute_G_k_w(H0_k, zero, mu, n_threads, G0_k_w);
 }
 
+// Computes the free Matsubara Green's function G_0(\vec{k}, i\omega_n) from the non-interacting
+// Hamiltonian H_0(\vec{k}).
+// template <typename Scalar, typename OrbitalSpinDmn, typename KDmn, typename MatsubaraFreqDmn>
+// void compute_G0_k_w(
+//     const func::function<Scalar,
+//                          func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn>>& H0_k,
+//     const Scalar mu, const int n_threads,
+//     func::function<dca::util::ComplexAlias<Scalar>,
+//                    func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, MatsubaraFreqDmn>>& G0_k_w) {
+//   // Call compute_G_k_w with vanishing self-energy.
+//   const func::function<dca::util::ComplexAlias<Scalar>,
+//                        func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, MatsubaraFreqDmn>>
+//       zero;
+//   compute_G_k_w(H0_k, zero, mu, n_threads, G0_k_w);
+// }
+
+  
 // Computes the free imaginary time Green's function G_0(\vec{k}, \tau) from the non-interacting
 // Hamiltonian H_0(\vec{k}).
 template <typename Scalar, typename OrbitalSpinDmn, typename KDmn, typename ImagTimeDmn>
 void compute_G0_k_t(
-		    const func::function<std::complex<dca::util::RealAlias<Scalar>>,
+		    const func::function<std::complex<Scalar>,
                          func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn>>& H0_k,
-    const Scalar mu, const Scalar beta,
-		    func::function<std::complex<dca::util::RealAlias<Scalar>>,
+		    const Scalar mu, const dca::util::RealAlias<Scalar> beta,
+		    func::function<std::complex<Scalar>,
                    func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, ImagTimeDmn>>& G0_k_t) {
   // Diagonal \mu function.
-  func::function<std::complex<dca::util::RealAlias<Scalar>>, func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn>> mu_function;
+  func::function<std::complex<dca::util::RealAlias<Scalar>>,
+                 func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn>>
+      mu_function;
   for (int k = 0; k < KDmn::dmn_size(); ++k) {
     for (int m = 0; m < OrbitalSpinDmn::dmn_size(); ++m) {
       mu_function(m, m, k) = mu;
@@ -82,9 +116,9 @@ void compute_G0_k_t(
 
 template <typename Scalar, typename OrbitalSpinDmn, typename KDmn, typename ImagTimeDmn>
 void compute_G0_k_t(
-    const func::function<std::complex<Scalar>,
+		    const func::function<std::complex<Scalar>,
                          func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn>>& H0_k,
-    const Scalar mu, const Scalar beta,
+    const Scalar mu, const dca::util::RealAlias<Scalar> beta,
     func::function<Scalar, func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, ImagTimeDmn>>& G0_k_t) {
   func::function<std::complex<Scalar>, func::dmn_variadic<OrbitalSpinDmn, OrbitalSpinDmn, KDmn, ImagTimeDmn>>
       f_cmplx;

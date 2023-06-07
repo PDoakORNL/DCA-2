@@ -52,10 +52,12 @@ public:
   using Complex = dca::util::ComplexAlias<Scalar>;
   using typename Base::BDmn;
   using typename Base::SDmn;
+  template<typename T>
+  using TpAllocator = dca::linalg::util::DeviceAllocator<T>;
 
   using Matrix = linalg::Matrix<Complex, dca::linalg::GPU>;
   using RMatrix =
-      linalg::ReshapableMatrix<Complex, dca::linalg::GPU, config::McOptions::TpAllocator<Complex>>;
+      linalg::ReshapableMatrix<Complex, dca::linalg::GPU, TpAllocator<Complex>>;
   using MatrixHost = linalg::Matrix<Complex, dca::linalg::CPU>;
 
 
@@ -181,7 +183,7 @@ void CachedNdft<Scalar, RDmn, WDmn, WPosDmn, linalg::GPU, non_density_density>::
   const int k = indexed_config_[0].size();
   T_l_dev_.resizeNoCopy(std::make_pair(nw_pos, k));
   details::computeT(nw_pos, k, T_l_dev_.ptr(), T_l_dev_.leadingDimension(), config_dev_[0].ptr(),
-                    w_dev_.ptr() + nw_pos, false, magma_queue_.getStream());
+                    w_dev_.ptr(), false, magma_queue_.getStream());
 
   T_r_dev_.resizeNoCopy(std::make_pair(k, nw));
   details::computeT(k, nw, T_r_dev_.ptr(), T_r_dev_.leadingDimension(), config_dev_[1].ptr(),

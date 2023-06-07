@@ -60,6 +60,8 @@ protected:
   const parallel::NoConcurrency concurrency_;
 };
 
+
+
 // Test for a 2x2 square lattice with diagonal (in orbital-spin space) non-interacting Hamiltonian
 // H_0.
 TEST_F(ComputeFreeGreensFunctionTest, SquareLattice) {

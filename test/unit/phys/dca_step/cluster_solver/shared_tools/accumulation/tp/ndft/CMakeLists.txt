@@ -19,3 +19,10 @@ dca_add_gtest(cached_ndft_gpu_test
   FAST
   INCLUDE_DIRS ${DCA_INCLUDE_DIRS};${PROJECT_SOURCE_DIR}
   LIBS function_transform ${DCA_GPU_LIBS} magma::magma magma::sparse ${THIS_TEST_LIBS})
+
+dca_add_gtest(cached_ndft_cpu_test
+  THREADED
+  GTEST_MAIN
+  FAST
+  INCLUDE_DIRS ${DCA_INCLUDE_DIRS};${PROJECT_SOURCE_DIR}
+  LIBS function_transform magma::magma magma::sparse ${THIS_TEST_LIBS})

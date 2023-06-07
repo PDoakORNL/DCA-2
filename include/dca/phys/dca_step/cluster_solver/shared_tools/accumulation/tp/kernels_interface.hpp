@@ -46,6 +46,13 @@ double updateG4(Scalar* G4, const Scalar* G_dn, const int ldgd,
                bool atomic, cudaStream_t stream, std::size_t start,
                std::size_t end);
 
+// Updates G4 in the range [start, end)
+template <typename Scalar, FourPointType type, typename SignType>
+double updateG4NoSpinSymm(Scalar* G4, const Scalar* G_dn, const int ldgd,
+               const Scalar* G_up, const int ldgu, const SignType factor,
+               bool atomic, cudaStream_t stream, std::size_t start,
+               std::size_t end);
+
 }  // namespace details
 }  // namespace accumulator
 }  // namespace solver

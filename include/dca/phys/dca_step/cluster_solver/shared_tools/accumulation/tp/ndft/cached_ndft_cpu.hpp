@@ -53,7 +53,7 @@ public:
   // Returns: the number of flops performed by the method.
   template <class Configuration, typename ScalarIn, class OutDmn>
   float execute(const Configuration& configuration, const linalg::Matrix<ScalarIn, linalg::CPU>& M,
-                func::function<Scalar, OutDmn>& M_r_r_w_w, int spin = 0);
+                func::function<Complex, OutDmn>& M_r_r_w_w, int spin = 0);
 
 private:
   template <class Configuration>
@@ -107,7 +107,7 @@ template <typename Scalar, class RDmn, class WDmn, class WPosDmn, bool non_densi
 template <class Configuration, typename ScalarIn, class OutDmn>
 float CachedNdft<Scalar, RDmn, WDmn, WPosDmn, linalg::CPU, non_density_density>::execute(
     const Configuration& configuration, const linalg::Matrix<ScalarIn, linalg::CPU>& M,
-    func::function<Scalar, OutDmn>& M_r_r_w_w, const int spin) {
+    func::function<Complex, OutDmn>& M_r_r_w_w, const int spin) {
   assert(M_r_r_w_w[M_r_r_w_w.signature() - 1] == WDmn::dmn_size());
   assert(M_r_r_w_w[M_r_r_w_w.signature() - 2] == WPosDmn::dmn_size());
   double flops = 0.;

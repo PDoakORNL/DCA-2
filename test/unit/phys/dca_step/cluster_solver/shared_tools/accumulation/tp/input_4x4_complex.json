@@ -33,6 +33,12 @@
     "U"       : 2
   },
 
+    "Rashba-Hubbard-model":
+  {
+    "t"       : 1,
+    "U"       : 2
+  },
+
   "domains": {
     "real-space-grids": {
       "cluster": [[4, 0],

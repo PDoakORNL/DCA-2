@@ -448,10 +448,6 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
         }
 
         flops += n_loops * (flops_update_spin_diff + 2 * flops_update_atomic);
-#ifndef NDEBUG
-        std::cout << "G4 PHM from spin:" << G4_FromSpinDifference << '\n';
-        std::cout << "G4 PHM from direct:" << G4_DirectDifference << '\n';
-#endif
         break;
 
       case FourPointType::PARTICLE_HOLE_CHARGE:
@@ -583,7 +579,9 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
                                   w_plus_w_ex(w1, w_ex), G_a_);  // b3, b1
                     getGMultiband(0, k1, k2, w1, w2, G_b_);      // b2, b4
 
-                    for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
+
+
+		    for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
                       for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
                         for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
                           for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1) {

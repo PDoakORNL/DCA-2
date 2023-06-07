@@ -28,7 +28,7 @@
 #include "dca/linalg/util/gpu_stream.hpp"
 #include "dca/linalg/lapack/magma.hpp"
 #include "dca/linalg/reshapable_matrix.hpp"
-#include "dca/linalg/util/allocators/managed_allocator.hpp"
+#include "dca/linalg/util/allocators/device_allocator.hpp"
 #include "dca/linalg/util/magma_queue.hpp"
 
 #include "dca/math/function_transform/special_transforms/space_transform_2D_gpu.hpp"
@@ -53,8 +53,10 @@ namespace accumulator {
 template <class Parameters, DistType DT>
 class TpAccumulatorGpuBase {
 public:
-  using TpPrecision = typename dca::config::McOptions::TPAccumulationPrecision;
+  using TpPrecision = typename Parameters::TPAccumPrec;
   using TpComplex = std::complex<TpPrecision>;
+  template<typename T>
+  using TpAllocator = dca::linalg::util::DeviceAllocator<T>;
   using RDmn = typename Parameters::RClusterDmn;
   using KDmn = typename Parameters::KClusterDmn;
   using KExchangeDmn = func::dmn_0<domains::MomentumExchangeDomain>;
@@ -74,7 +76,7 @@ protected:
 
   using MatrixDev = linalg::Matrix<TpComplex, linalg::GPU>;
   using RMatrix =
-      linalg::ReshapableMatrix<TpComplex, linalg::GPU, config::McOptions::TpAllocator<TpComplex>>;
+      linalg::ReshapableMatrix<TpComplex, linalg::GPU, TpAllocator<TpComplex>>;
   using RMatrixValueType = typename RMatrix::ValueType;
   using MatrixHost = linalg::Matrix<TpComplex, linalg::CPU>;
 
@@ -108,14 +110,14 @@ protected:
   // this is how this is defined in the all tp_accumulator_gpu, suspect?
   constexpr static bool non_density_density_ =
     models::HasInitializeNonDensityInteractionMethod<Parameters>::value;
-  CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtDmn, linalg::CPU, non_density_density_> ndft_obj_;
+  // CachedNdft<TpPrecision, RDmn, WTpExtDmn, WTpExtDmn, linalg::CPU, non_density_density_> ndft_obj_;
 
-  using NdftType = CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtDmn, linalg::GPU, non_density_density_>;
+  using NdftType = CachedNdft<TpPrecision, RDmn, WTpExtDmn, WTpExtDmn, linalg::GPU, non_density_density_>;
   std::array<NdftType, 2> ndft_objs_;
   using DftType = math::transform::SpaceTransform2DGpu<RDmn, KDmn, TpPrecision>;
   std::array<DftType, 2> space_trsf_objs_;
 
-  constexpr static int n_ndft_queues_ = config::McOptions::memory_savings ? 1 : 2;
+  constexpr static int n_ndft_queues_ = 2; //config::McOptions::memory_savings ? 1 : 2;
   constexpr static int n_bands_ = Parameters::model_type::BANDS;
 
   std::array<RMatrix, 2> G_;

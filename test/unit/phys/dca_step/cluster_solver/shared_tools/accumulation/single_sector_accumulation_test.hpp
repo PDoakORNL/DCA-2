@@ -36,21 +36,6 @@ namespace dca {
 
 namespace testing {
 
-class PositiveFrq {
-public:
-  using element_type = double;
-  static std::size_t get_size() {
-    return size_;
-  }
-  static void initialize(const int n_frq) {
-    size_ = n_frq;
-  }
-
-private:
-  static int size_;
-};
-int PositiveFrq::size_ = -1;
-
 template <int size>
 class MockClusterDmn {
 public:
@@ -142,7 +127,6 @@ public:
 
   using RDmn = dca::func::dmn_0<MockClusterDmn<n_sites>>;
   using FreqDmn = dca::func::dmn_0<dca::phys::domains::frequency_domain>;
-  using PosFreqDmn = dca::func::dmn_0<PositiveFrq>;
   using BDmn = dca::func::dmn_0<dca::phys::domains::electron_band_domain>;
 
   using Configuration = std::vector<Vertex>;
@@ -164,8 +148,10 @@ public:
   static void SetUpTestCase() {
     if (!single_sector_accumulator_test_initialized) {
       // Initialize the frequency domains.
+      // it expects half the number of frequencies because historically the number of frequencies for this
+      // test class was the number of positive frequencies
       dca::phys::domains::frequency_domain::initialize(beta_, n_frqs);
-      PositiveFrq::initialize(n_frqs);
+
       // Initialize the band domain.
       BDmn::parameter_type::initialize(MockParameters());
 

@@ -112,7 +112,7 @@ inline __device__ int G4Helper::kMinus(const int k_idx) const {
   return solver::details::cluster_momentum_helper.minus(k_idx);
 }
 
-inline __device__ bool G4Helper::extendGIndices(int& k1, int& k2, int& w1, int& w2) const {  
+inline __device__ bool G4Helper::extendGIndices(int& k1 [[maybe_unused]], int& k2 [[maybe_unused]], int& w1, int& w2) const {  
   w1 += ext_size_;
   w2 += ext_size_;
   return true;
@@ -123,7 +123,7 @@ inline __device__ bool G4Helper::extendGIndicesMultiBand(int& k1 [[maybe_unused]
   w2 += ext_size_;
   return true;
 }
-  
+
 inline __device__ void G4Helper::unrollIndex(std::size_t index, unsigned& b1, unsigned& b2,
                                              unsigned& b3, unsigned& b4, unsigned& k1, unsigned& w1,
                                              unsigned& k2, unsigned& w2, unsigned& k_ex,
