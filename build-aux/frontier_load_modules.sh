@@ -27,3 +27,5 @@ export HDF5_ROOT=${OLCF_HDF5_ROOT}
 export MAGMA_ROOT=/sw/frontier/magma/opt/linux-sles15-zen3/cce-15.0.0/magma-2.7.2-x7o7sph6npwb73t2leetbgpbypqyhtz6
 export FFTW_PATH=${OLCF_FFTW_ROOT}
 export LD_PRELOAD=/opt/cray/pe/lib64/cce/libtcmalloc_minimal.so.1
+export FORGE_MPI_INIT=main
+export FORGE_HOLD_MPI_INIT=1

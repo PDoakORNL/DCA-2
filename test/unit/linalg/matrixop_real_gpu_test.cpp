@@ -24,6 +24,9 @@
 #include "dca/linalg/util/util_cublas.hpp"
 #include "cpu_test_util.hpp"
 #include "gpu_test_util.hpp"
+#include "dca/linalg/util/util_gpublas.hpp"
+#include "dca/linalg/util/info_gpu.hpp"
+#include <hip/hip_runtime.h>
 
 template <typename ScalarType>
 class MatrixopRealGPUTest : public ::testing::Test {
@@ -783,4 +786,18 @@ TEST(MatrixopGPUTest, Difference) {
         EXPECT_NEAR(diff, dca::linalg::matrixop::difference(da, db, diffcalc), err);
         EXPECT_THROW(dca::linalg::matrixop::difference(da, db, diffcalc - err), std::logic_error);
       }
+}
+
+int main(int argc, char** argv) {
+  //  hipInit(0);
+  dca::linalg::util::printInfoDevices();
+  dca::linalg::util::initializeMagma();
+  ::testing::InitGoogleTest(&argc, argv);
+
+  // ::testing::TestEventListeners& listeners = ::testing::UnitTest::GetInstance()->listeners();
+  // delete listeners.Release(listeners.default_result_printer());
+  // listeners.Append(new dca::testing::MinimalistPrinter);
+
+  int result = RUN_ALL_TESTS();
+  return result;
 }

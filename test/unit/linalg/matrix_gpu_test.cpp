@@ -1,11 +1,12 @@
-// Copyright (C) 2021 ETH Zurich
-// Copyright (C) 2021 UT-Battelle, LLC
+// Copyright (C) 2024 ETH Zurich
+// Copyright (C) 2024 UT-Battelle, LLC
 // All rights reserved.
 //
 // See LICENSE for terms of usage.
 // See CITATION.md for citation guidelines, if DCA++ is used for scientific publications.
 //
 // Author: Raffaele Solca' (rasolca@itp.phys.ethz.ch)
+//         Peter W. Doak   (doakpw@ornl.gov)
 //
 // This file tests the Matrix<GPU> class.
 
@@ -17,7 +18,6 @@
 #include "gpu_test_util.hpp"
 #include "dca/linalg/util/util_gpublas.hpp"
 #include "dca/linalg/util/info_gpu.hpp"
-
 
 TEST(MatrixGPUTest, Constructors) {
   int size = 3;
@@ -654,8 +654,8 @@ TEST(MatrixGPUTest, setTo) {
 }
 
 int main(int argc, char** argv) {
-
-      dca::linalg::util::printInfoDevices();
+  hipInit(0);
+  dca::linalg::util::printInfoDevices();
   dca::linalg::util::initializeMagma();
   ::testing::InitGoogleTest(&argc, argv);
 

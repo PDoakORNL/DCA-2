@@ -39,7 +39,6 @@ dca_add_gtest(matrixop_cpu_gpu_test
               LIBS ${DCA_LIBS})
 
 dca_add_gtest(matrixop_real_gpu_test
-              GTEST_MAIN
               CUDA
               LIBS ${DCA_LIBS} lapack gpu_utils magma::magma lapack_kernels blas_kernels)
 
