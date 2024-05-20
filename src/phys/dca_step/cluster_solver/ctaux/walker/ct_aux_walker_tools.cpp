@@ -177,8 +177,8 @@ auto CT_AUX_WALKER_TOOLS<dca::linalg::CPU, Scalar>::solve_Gamma(
     int n, dca::linalg::Matrix<Scalar, dca::linalg::CPU>& Gamma_LU, Scalar exp_delta_V, Real& max,
     Real& min) -> Real {
   // solve_Gamma_slow(n, Gamma_LU);
-  solve_Gamma_fast(n, Gamma_LU);
-  // solve_Gamma_BLAS(n, Gamma_LU);
+  // solve_Gamma_fast(n, Gamma_LU);
+  solve_Gamma_BLAS(n, Gamma_LU);
 
   Scalar Gamma_LU_n_n = Gamma_LU(n, n);
   Real Gamma_val = std::abs(Gamma_LU_n_n);
