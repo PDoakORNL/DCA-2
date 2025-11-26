@@ -312,24 +312,25 @@ void BseClusterSolver<ParametersType, DcaDataType, ScalarType>::solve_BSE_on_clu
   if (concurrency.id() == concurrency.first())
     std::cout << "\t" << __FUNCTION__ << std::endl << std::endl;
 
-  // ScalarType renorm = 1. / (parameters.get_beta() * k_DCA::dmn_size());
+  ScalarType renorm = 1. / k_DCA::dmn_size();
 
   int N = cluster_eigenvector_dmn.get_size();
 
   dca::linalg::Matrix<std::complex<ScalarType>, dca::linalg::CPU> G4_inv(N);
   dca::linalg::Matrix<std::complex<ScalarType>, dca::linalg::CPU> G4_0_inv(N);
 
-  // G_II *= renorm;
+  G_II *= renorm;
   dca::linalg::matrixop::copyArrayToMatrix(N, N, &G_II(0), N, G4_inv);
   dca::linalg::matrixop::inverse(G4_inv);
 
-  // G_II_0 *= renorm;
+  G_II_0 *= renorm;
   dca::linalg::matrixop::copyArrayToMatrix(N, N, &G_II_0(0), N, G4_0_inv);
   dca::linalg::matrixop::inverse(G4_0_inv);
 
+  ScalarType beta_renorm = 1 / parameters.get_beta();
   for (int j = 0; j < N; j++)
     for (int i = 0; i < N; i++)
-      Gamma_cluster(i, j) = G4_0_inv(i, j) - G4_inv(i, j);
+      Gamma_cluster(i, j) = (G4_0_inv(i, j) - G4_inv(i, j)) * beta_renorm;
 }
 
 }  // namespace analysis

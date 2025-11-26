@@ -52,7 +52,7 @@ public:
   using concurrency_type = typename Parameters::concurrency_type;
 
   // Number of leading eigenvalues/eigenvectors to store.
-  static constexpr int num_evals = 10;
+  static constexpr int num_evals = 128;
   using LeadingEigDmn = func::dmn_0<func::dmn<num_evals, int>>;
 
   // Number of cubic harmonics to compare the leading eigenvectors with.
@@ -89,8 +89,7 @@ public:
   using HOST_matrix_dmn_t = func::dmn_variadic<LatticeEigenvectorDmn, LatticeEigenvectorDmn>;
 
   template <typename T>
-  using Matrix =
-      dca::linalg::Matrix<T, dca::linalg::CPU, dca::linalg::util::AlignedAllocator<T>>;
+  using Matrix = dca::linalg::Matrix<T, dca::linalg::CPU, dca::linalg::util::AlignedAllocator<T>>;
 
   BseLatticeSolver(Parameters& parameters, DcaDataType& MOMS);
 
@@ -125,13 +124,11 @@ private:
                                         const Matrix<EvElementType>& VR);
   void record_eigenvalues_and_folded_eigenvectors(
       dca::linalg::Vector<std::complex<ScalarType>, dca::linalg::CPU>& L,
-      Matrix<std::complex<ScalarType>>& VL,
-      Matrix<std::complex<ScalarType>>& VR);
+      Matrix<std::complex<ScalarType>>& VL, Matrix<std::complex<ScalarType>>& VR);
 
-  void compute_folded_susceptibility(
-      dca::linalg::Vector<std::complex<ScalarType>, dca::linalg::CPU>& L,
-      Matrix<std::complex<ScalarType>>& VL,
-      Matrix<std::complex<ScalarType>>& VR);
+  void compute_folded_susceptibility(dca::linalg::Vector<std::complex<ScalarType>, dca::linalg::CPU>& L,
+                                     Matrix<std::complex<ScalarType>>& VL,
+                                     Matrix<std::complex<ScalarType>>& VR);
 
   // Multiplies the eigenvectors with a phase such that they become symmetric in the Matsubara
   // frequency, i.e. g(\omega_n) = g^*(-omega_n).
@@ -354,7 +351,7 @@ void BseLatticeSolver<Parameters, DcaDataType, ScalarType>::computeChi0Lattice()
   }
 
   // Renormalize and set diagonal \chi_0 matrix.
-  const ScalarType renorm = 1. / (parameters.get_beta() * k_HOST_VERTEX::dmn_size());
+  const ScalarType renorm = 1. / k_HOST_VERTEX::dmn_size();
 
   for (int w_ind = 0; w_ind < WVertexDmn::dmn_size(); w_ind++)
     for (int K_ind = 0; K_ind < k_HOST_VERTEX::dmn_size(); K_ind++)
