@@ -16,7 +16,7 @@
 #include "dca/math/util/vector_operations.hpp"
 
 struct MockParameters {
-  bool compute_all_transfers() const {
+  bool compute_all_frequency_transfers() const {
     return compute_all_transfers_;
   }
   int get_four_point_frequency_transfer() const {

@@ -26,7 +26,7 @@ TEST(FourPointParametersTest, DefaultValues) {
 
   EXPECT_EQ(momentum_transfer_input_check, pars.get_four_point_momentum_transfer_input());
   EXPECT_EQ(0, pars.get_four_point_frequency_transfer());
-  EXPECT_EQ(false, pars.compute_all_transfers());
+  EXPECT_EQ(false, pars.compute_all_frequency_transfers());
 }
 
 using namespace dca::phys;
@@ -52,7 +52,7 @@ TEST(FourPointParametersTest, ReadAll) {
 
   EXPECT_EQ(momentum_transfer_input_check, pars.get_four_point_momentum_transfer_input());
   EXPECT_EQ(1, pars.get_four_point_frequency_transfer());
-  EXPECT_EQ(true, pars.compute_all_transfers());
+  EXPECT_EQ(true, pars.compute_all_frequency_transfers());
 }
 
 TEST(FourPointParametersTest, Setters) {
@@ -76,13 +76,13 @@ TEST(FourPointParametersTest, AccumulateG4) {
 }
 
 TEST(FourPointParametersTest, ReadLegacy) {
-    dca::io::JSONReader reader;
-    dca::phys::params::FourPointParameters<2> pars;
+  dca::io::JSONReader reader;
+  dca::phys::params::FourPointParameters<2> pars;
 
-    reader.open_file(DCA_SOURCE_DIR
-                     "/test/unit/phys/parameters/four_point_parameters/input_read_legacy.json");
-    pars.readWrite(reader);
-    reader.close_file();
+  reader.open_file(DCA_SOURCE_DIR
+                   "/test/unit/phys/parameters/four_point_parameters/input_read_legacy.json");
+  pars.readWrite(reader);
+  reader.close_file();
 
-    EXPECT_EQ(std::vector<FourPointType>{PARTICLE_HOLE_MAGNETIC}, pars.get_four_point_channels());
+  EXPECT_EQ(std::vector<FourPointType>{PARTICLE_HOLE_MAGNETIC}, pars.get_four_point_channels());
 }
