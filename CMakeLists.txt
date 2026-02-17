@@ -4,7 +4,7 @@
 #
 # CMake build script for DCA++
 
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.19)
 project(DCA++ C CXX)
 
 ################################################################################
