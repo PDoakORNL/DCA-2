@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 namespace dca {
@@ -23,6 +24,10 @@ namespace io {
 class Buffer : public std::vector<unsigned char> {
 public:
   using Container = std::vector<unsigned char>;
+
+  Buffer() = default;
+
+  Buffer(std::size_t n) : Container(n) {}
 
   // Copies obj in the buffer as a plain sequence of bytes.
   template <class T, typename = std::enable_if_t<std::is_trivially_copyable<T>::value>>
@@ -46,6 +51,13 @@ public:
   template <class T1, class T2>
   Buffer& operator>>(std::pair<T1, T2>& p);
 
+  // Copies n objects of type T in the buffer as a plain sequence of bytes.
+  template <class T>
+  void write(const T* ptr, std::size_t n = 1);
+  // Read n objects o f type T from the buffer as a plain sequence of bytes.
+  template <class T>
+  void read(T* ptr, std::size_t n = 1);
+
   // Retrieves the position of the next read.
   std::size_t tellg() const {
     return read_idx_;
@@ -55,14 +67,12 @@ public:
     read_idx_ = idx;
   }
 
-private:
-  // Copies n objects of type T in the buffer as a plain sequence of bytes.
-  template <class T>
-  void write(const T* ptr, std::size_t n = 1);
-  // Read n objects o f type T from the buffer as a plain sequence of bytes.
-  template <class T>
-  void read(T* ptr, std::size_t n = 1);
+  void clear() {
+    Container::clear();
+    read_idx_ = 0;
+  }
 
+private:
   std::size_t read_idx_ = 0;
 };
 
@@ -152,7 +162,7 @@ Buffer& Buffer::operator>>(std::pair<T1, T2>& p) {
   return (*this) >> p.first >> p.second;
 }
 
-}  // io
-}  // dca
+}  // namespace io
+}  // namespace dca
 
 #endif  // DCA_IO_BUFFER_HPP
