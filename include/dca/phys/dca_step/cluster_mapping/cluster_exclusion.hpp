@@ -139,6 +139,8 @@ template <typename parameters_type, typename MOMS_type>
 void cluster_exclusion<parameters_type, MOMS_type>::compute_G0_R_t_cluster_excluded() {
   profiler_type profiler(__FUNCTION__, "cluster_exclusion", __LINE__);
 
+  // I don't like this at all, we're temporarily taking
+  // MOMS.G0_k_w_cluster_excluded to something else to do a ft
   MOMS.G0_k_w_cluster_excluded -= MOMS.G0_k_w;
 
   {
@@ -147,10 +149,12 @@ void cluster_exclusion<parameters_type, MOMS_type>::compute_G0_R_t_cluster_exclu
 
     MOMS.G0_k_t_cluster_excluded += MOMS.G0_k_t;
 
-    math::transform::FunctionTransform<KClusterDmn, RClusterDmn>::execute(MOMS.G0_k_t_cluster_excluded,
-                                                              MOMS.G0_r_t_cluster_excluded);
+    math::transform::FunctionTransform<KClusterDmn, RClusterDmn>::execute(
+        MOMS.G0_k_t_cluster_excluded, MOMS.G0_r_t_cluster_excluded);
   }
 
+  // Now we return it to what it was on entrance to the function. Is
+  // this memory savings really worth this ?
   MOMS.G0_k_w_cluster_excluded += MOMS.G0_k_w;
 }
 
@@ -193,8 +197,8 @@ void cluster_exclusion<parameters_type, MOMS_type>::plot_G0_R_t_cluster_excluded
   }
 }
 
-}  // clustermapping
-}  // phys
-}  // dca
+}  // namespace clustermapping
+}  // namespace phys
+}  // namespace dca
 
 #endif  // DCA_PHYS_DCA_STEP_CLUSTER_MAPPING_CLUSTER_EXCLUSION_HPP

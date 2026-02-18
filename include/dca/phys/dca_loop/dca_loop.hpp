@@ -240,6 +240,13 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::execute() {
 
     perform_cluster_exclusion_step();
 
+    // I guess here is where we can put in the calculation of the
+    // disordered_g0_r_t
+    // The question is if all the previous intialization is immutable
+    // or whether some if will have to be done again or refactored
+    // If there is disorder do the disorder application here.
+    //
+
     double L2_Sigma_difference =
         solve_cluster_problem(dca_iteration_);  // returned from cluster_solver::finalize
 
