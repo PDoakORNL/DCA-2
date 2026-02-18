@@ -198,6 +198,9 @@ public:
   func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, WDmn>>
       G0_r_w_cluster_excluded;
   func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>> G0_r_t_cluster_excluded;
+  func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>>
+      disordered_G0_r_t_cluster_excluded;
+  // Vector NuDmn * RDmn in size that is the disorder configuration
 
   func::function<Real, NuDmn> orbital_occupancy;
 
@@ -365,19 +368,19 @@ void DcaData<Parameters, DT>::read(const std::string& filename) {
   if (parameters_.isAccumulatingG4()) {
     concurrency_.broadcast_object(G_k_w);
 #ifndef NDEBUG
-  if (concurrency_.id() == concurrency_.first()) {
-    std::cout << "broadcasted G_k_w \n";
-  }
+    if (concurrency_.id() == concurrency_.first()) {
+      std::cout << "broadcasted G_k_w \n";
+    }
 #endif
 
-  for (auto& G4_channel : G4_) {
+    for (auto& G4_channel : G4_) {
       concurrency_.broadcast_object(G4_channel);
 #ifndef NDEBUG
-  if (concurrency_.id() == concurrency_.first()) {
-    std::cout << "broadcasted G4_channel \n";
-  }
+      if (concurrency_.id() == concurrency_.first()) {
+        std::cout << "broadcasted G4_channel \n";
+      }
 #endif
-  }
+    }
   }
 }
 
@@ -555,7 +558,8 @@ void DcaData<Parameters, DT>::initializeH0_and_H_i() {
     for (int nu2 = 0; nu2 < NuDmn::dmn_size(); ++nu2)
       for (int nu1 = 0; nu1 < NuDmn::dmn_size(); ++nu1) {
         if (std::abs(H_interactions(nu1, nu2, r) - H_interactions(nu2, nu1, minus_r)) > 1e-8) {
-          std::cout << r << " , " << minus_r << " , " << H_interactions(nu1, nu2, r) << " , " << H_interactions(nu2, nu1, minus_r) << "\n";
+          std::cout << r << " , " << minus_r << " , " << H_interactions(nu1, nu2, r) << " , "
+                    << H_interactions(nu2, nu1, minus_r) << "\n";
           throw(std::logic_error("Double counting is not consistent."));
         }
       }
@@ -589,6 +593,7 @@ void DcaData<Parameters, DT>::initialize_G0() {
     // Compute G0_r_w.
     math::transform::FunctionTransform<KClusterDmn, RClusterDmn>::execute(G0_k_w, G0_r_w);
     Symmetrize<Parameters>::execute(G0_r_w, H_symmetry, true);
+    // At this point we can apply the disorder configuration
 
     // Compute G0_r_t.
     math::transform::FunctionTransform<KClusterDmn, RClusterDmn>::execute(G0_k_t, G0_r_t);
@@ -659,13 +664,13 @@ void DcaData<Parameters, DT>::initializeSigma(const std::string& filename) {
     }
   }
   concurrency_.broadcast(parameters_.get_chemical_potential());
-  #ifndef NDEBUG
+#ifndef NDEBUG
   if (concurrency_.id() == concurrency_.first()) {
     std::cout << "broadcasted chemical potential: " << parameters_.get_chemical_potential();
   }
 #endif
   concurrency_.broadcast(Sigma);
-  #ifndef NDEBUG
+#ifndef NDEBUG
   if (concurrency_.id() == concurrency_.first()) {
     std::cout << "broadcasted Sigma \n";
   }
