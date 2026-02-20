@@ -27,6 +27,7 @@
 #include "dca/phys/parameters/analysis_parameters.hpp"
 #include "dca/phys/domains/cluster/cluster_domain_aliases.hpp"
 #include "dca/phys/parameters/dca_parameters.hpp"
+#include "dca/phys/parameters/disorder_parameters.hpp"
 #include "dca/phys/parameters/domains_parameters.hpp"
 #include "dca/phys/parameters/double_counting_parameters.hpp"
 #include "dca/phys/parameters/ed_solver_parameters.hpp"
@@ -65,6 +66,7 @@ template <typename Concurrency, typename Threading, typename Profiler, typename 
           typename RandomNumberGenerator, ClusterSolverId solver_name, class NUMTRAITS>
 class Parameters : public AnalysisParameters,
                    public DcaParameters,
+                   public DisorderParameters,
                    public DomainsParameters,
                    public DoubleCountingParameters,
                    public EdSolverParameters,
@@ -165,10 +167,12 @@ template <class Parameters, typename = bool>
 struct CheckParametersNumericTypes : public std::false_type {};
 
 template <class Parameters>
-struct CheckParametersNumericTypes <Parameters,
-				    std::enable_if_t<std::is_same<typename Parameters::Scalar,
-								  typename dca::util::ScalarSelect<typename Parameters::Real, Parameters::complex_g0>::type>::value, bool>>
-    : public std::true_type {};
+struct CheckParametersNumericTypes<
+    Parameters,
+    std::enable_if_t<std::is_same<typename Parameters::Scalar,
+                                  typename dca::util::ScalarSelect<typename Parameters::Real,
+                                                                   Parameters::complex_g0>::type>::value,
+                     bool>> : public std::true_type {};
 
 template <typename Concurrency, typename Threading, typename Profiler, typename Model,
           typename RandomNumberGenerator, ClusterSolverId solver_name, typename NUMTRAITS>
@@ -202,8 +206,10 @@ Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, solve
 #endif
 
   // check consistency between the value of the Parameters::complex_g0 and Parameters NUMTRAITS
-  static_assert(std::is_same_v<typename Parameters::Scalar,
-		typename dca::util::ScalarSelect<typename Parameters::Real, Parameters::complex_g0>::type>);
+  static_assert(
+      std::is_same_v<
+          typename Parameters::Scalar,
+          typename dca::util::ScalarSelect<typename Parameters::Real, Parameters::complex_g0>::type>);
 }
 
 template <typename Concurrency, typename Threading, typename Profiler, typename Model,
@@ -266,8 +272,7 @@ void Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, 
 template <typename Concurrency, typename Threading, typename Profiler, typename Model,
           typename RandomNumberGenerator, ClusterSolverId solver_name, typename NUMTRAITS>
 void Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, solver_name,
-                NUMTRAITS>::broadcast()
-{
+                NUMTRAITS>::broadcast() {
   concurrency_.broadcast_object(*this);
 }
 
