@@ -1,5 +1,5 @@
 // Copyright (C) 2018 ETH Zurich
-// Copyright (C) 2018 UT-Battelle, LLC
+// Copyright (C) 2026 UT-Battelle, LLC
 // All rights reserved.
 //
 // See LICENSE for terms of usage.
@@ -28,6 +28,7 @@
 
 #include "dca/distribution/dist_types.hpp"
 #include "dca/function/domains.hpp"
+#include "dca/function/domains/dmn_variadic.hpp"
 #include "dca/function/function.hpp"
 #include "dca/function/util/real_complex_conversion.hpp"
 #include "dca/io/reader.hpp"
@@ -201,6 +202,7 @@ public:
   func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>>
       disordered_G0_r_t_cluster_excluded;
   // Vector NuDmn * RDmn in size that is the disorder configuration
+  func::function<Real, func::dmn_variadic<NuDmn, RClusterDmn>> disorder_configuration;
 
   func::function<Real, NuDmn> orbital_occupancy;
 
