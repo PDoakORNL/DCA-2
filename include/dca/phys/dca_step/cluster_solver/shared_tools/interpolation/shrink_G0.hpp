@@ -19,6 +19,7 @@
 #include "dca/phys/domains/quantum/electron_spin_domain.hpp"
 #include "dca/phys/domains/time_and_frequency/frequency_domain.hpp"
 #include "dca/phys/domains/time_and_frequency/time_domain.hpp"
+#include "dca/util/message_assert.hpp"
 
 namespace dca {
 namespace phys {
@@ -48,10 +49,10 @@ auto shrinkG0(const SpGreensFunction<dimension, Scalar>& G0) {
     for (int b2 = 0; b2 < BDmn::dmn_size(); b2++)
       for (int r = 0; r < RDmn<dimension>::dmn_size(); r++)
         for (int t = 0; t < TDmn::dmn_size(); t++) {
-          assert(std::abs(G0(b1, 0, b2, 0, r, t) - G0(b1, 1, b2, 1, r, t)) > spin_diff_limit &&
-                 ("G0 0,0 and 1,1 spinsectors do not actually have a small difference (" +
-                  std::to_string(G0(b1, 0, b2, 0, r, t) - G0(b1, 1, b2, 1, r, t)))
-                     .c_str());
+          MESSAGE_ASSERT(std::abs(G0(b1, 0, b2, 0, r, t) - G0(b1, 1, b2, 1, r, t)) < spin_diff_limit,
+                         ("G0 0,0 and 1,1 spinsectors do not actually have a small difference (" +
+                          std::to_string(G0(b1, 0, b2, 0, r, t) - G0(b1, 1, b2, 1, r, t))));
+
           g0_trimmed(b1, b2, r, t) = G0(b1, s, b2, s, r, t);
         }
   return g0_trimmed;
