@@ -18,6 +18,7 @@
 #include "dca/function/function.hpp"
 #include "dca/io/filesystem.hpp"
 #include "dca/io/reader.hpp"
+#include "dca/phys/domains/cluster/cluster_definitions.hpp"
 #include "dca/phys/domains/cluster/cluster_domain.hpp"
 #include "dca/phys/domains/quantum/dca_iteration_domain.hpp"
 #include "dca/phys/domains/quantum/electron_band_domain.hpp"
@@ -47,6 +48,10 @@ public:
   using k_DCA =
       func::dmn_0<domains::cluster_domain<double, Parameters::lattice_type::DIMENSION, domains::CLUSTER,
                                           domains::MOMENTUM_SPACE, domains::BRILLOUIN_ZONE>>;
+  using r_DCA =
+      func::dmn_0<domains::cluster_domain<double, Parameters::lattice_type::DIMENSION, domains::CLUSTER,
+                                          domains::REAL_SPACE, domains::BRILLOUIN_ZONE>>;
+
   DcaLoopData();
 
   template <typename WRITER>
@@ -85,6 +90,9 @@ public:
   func::function<double, DCA_iteration_domain_type> chemical_potential;
   func::function<double, DCA_iteration_domain_type> average_expansion_order;
 
+  func::function<double, DCA_iteration_domain_type> average_defect_density;
+  func::function<int, DCA_iteration_domain_type> defect_configurations;
+
   int last_completed_iteration = -1;
 };
 
@@ -113,7 +121,8 @@ DcaLoopData<Parameters>::DcaLoopData()
 
       density("density"),
       chemical_potential("chemical-potential"),
-      average_expansion_order("expansion_order") {}
+      average_expansion_order("expansion_order"),
+      average_defect_density("defect_density") {}
 
 template <typename Parameters>
 template <typename Writer>
