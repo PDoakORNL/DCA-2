@@ -180,6 +180,7 @@ Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, solve
            NUMTRAITS>::Parameters(const std::string& version_stamp, concurrency_type& concurrency)
     : AnalysisParameters(Model::DIMENSION),
       DcaParameters(Model::BANDS),
+      DisorderParameters(),
       DomainsParameters(Model::DIMENSION),
       DoubleCountingParameters(),
       EdSolverParameters(),
@@ -456,6 +457,10 @@ void Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, 
   AnalysisParameters::readWrite(reader_or_writer);
   DcaParameters::readWrite(reader_or_writer);
   DomainsParameters::readWrite(reader_or_writer);
+  // It makes sense for this to come after because validity of input
+  // for disorder is dependent on particulars of the domains. That is when
+  // we have some input validation someday
+  DisorderParameters::readWrite(reader_or_writer);
   DoubleCountingParameters::readWrite(reader_or_writer);
   EdSolverParameters::readWrite(reader_or_writer);
   FourPointParameters<Model::DIMENSION>::readWrite(reader_or_writer);

@@ -91,7 +91,10 @@ public:
   func::function<double, DCA_iteration_domain_type> average_expansion_order;
 
   func::function<double, DCA_iteration_domain_type> average_defect_density;
-  func::function<int, DCA_iteration_domain_type> defect_configurations;
+  func::function<int, DCA_iteration_domain_type> num_defect_configurations;
+  // What should the data structure for the defect configurations look
+  // I think the same as the r_DCA domain with just a +/- 1 likely a
+  // Real to make it easy multiply with the disorder potential
 
   int last_completed_iteration = -1;
 };
