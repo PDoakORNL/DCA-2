@@ -9,3 +9,6 @@
 // Here we apply a disorder configuration and disorder potential to a g0
 
 #include "apply_disorder.hpp"
+
+template <class Parameters, DistType DIST>
+auto makeDisorderedG0(decltype(dca::phys::DcaData::G0_r_t_cluster_excluded)& g0_r_t_cl_exl) {}
