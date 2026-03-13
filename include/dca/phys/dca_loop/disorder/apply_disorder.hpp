@@ -14,6 +14,13 @@
 #include <dca_data.hpp>
 
 template <class Parameters, DistType DIST>
-auto makeDisorderedG0(decltype(dca::phys::DcaData::G0_r_t_cluster_excluded)& g0_r_t_cl_exl);
+auto makeDisorderedG0(decltype(dca::phys::DcaData::G0_r_t_cluster_excluded)& g0_r_t_cl_exl) {
+  int matrix_dim = b::dmn_size() * s::dmn_size();
+
+  for (int ir = 0; ir < RClusterDmn::dmn_size(); ++ir)
+    for (int it = 0; it < TDmn::dmn_size(); ++it) {
+      dca::linalg::matrixop::copyArrayToMatrix()
+    }
+}
 
 #endif
