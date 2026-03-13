@@ -198,6 +198,8 @@ public:
       G0_k_t_cluster_excluded;
   func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, WDmn>>
       G0_r_w_cluster_excluded;
+  // Why these are the only G0 tensors that still can be reall or
+  // complex I'm not clear.
   func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>> G0_r_t_cluster_excluded;
   func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>>
       disordered_G0_r_t_cluster_excluded;
