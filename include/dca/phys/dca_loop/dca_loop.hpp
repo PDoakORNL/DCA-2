@@ -247,10 +247,7 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::execute() {
     // If there is disorder do the disorder application here.
     //
 
-    double L2_Sigma_difference =
-        solve_cluster_problem(dca_iteration_);  // returned from cluster_solver::finalize
-
-    adjust_impurity_self_energy();  // double-counting-correction
+    workClusters();
 
     perform_lattice_mapping();
 
@@ -286,6 +283,30 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::execute() {
       MOMS.initializeSigma(parameters.get_initial_self_energy());
     }
   }
+}
+
+template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
+void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::workClusters() {
+  if (parameters_.get_disorder_num_configurations() > 0) {
+    // additional things for summation and getting the post solve G
+    // to sum will need to be done here
+    for (int id = 0; id < parameters_.get_disorder_num_configurations()) {
+      MOMS.makeDisorderedG0(disorder_configurations[id]);
+      solvingTheCluster();
+    }
+  }
+  else {
+    // here we solve just the single ordered cluster
+    solvingTheCluster();
+  }
+}
+
+template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
+void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solvingTheCluster() {
+  double L2_Sigma_difference = solve_cluster_problem(dca_iteration_);
+  // returned from cluster_solver::finalize
+
+  adjust_impurity_self_energy();  // double-counting-correction
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
