@@ -10,16 +10,34 @@
 
 #ifndef DCA_PHYS_DCA_LOOP_DISORDER_APPLY_DISORDER_HPP
 #define DCA_PHYS_DCA_LOOP_DISORDER_APPLY_DISORDER_HPP
+#include "dca/linalg/matrixop.hpp"
 #include "dca/phys/dca_data/dca_data.hpp"
 #include <dca_data.hpp>
+#include "dca/linalg/linalg.hpp"
 
 template <class Parameters, DistType DIST>
-auto makeDisorderedG0(decltype(dca::phys::DcaData::G0_r_t_cluster_excluded)& g0_r_t_cl_exl) {
-  int matrix_dim = b::dmn_size() * s::dmn_size();
+auto makeDisorderedG0(
+    const decltype(dca::phys::DcaData::disorder_configuration)& disorder_configuration,
+    const decltype(dca::phys::DcaData::G0_r_t_cluster_excluded)& g0_r_t_cl_exl,
+    decltype(dca::phys::DcaData::disordered_G0_r_t_cluster_excluded)& disordered_g0_r_t_cl_exl) {
+  int matrix_dim = dca::phys::DcaData::NuDmn::dmn_size();
+  dca::linalg::Matrix<std::complex<double, dca::linalg::CPU>> g0_rtcex_inverse(matrix_dim);
+  dca::linalg::Vector<int, dca::linalg::CPU> ipiv;
+  dca::linalg::Vector<std::complex<double>, dca::linalg::CPU> work;
 
   for (int ir = 0; ir < RClusterDmn::dmn_size(); ++ir)
     for (int it = 0; it < TDmn::dmn_size(); ++it) {
-      dca::linalg::matrixop::copyArrayToMatrix()
+      dca::linalg::matrixop::copyArrayToMatrix(matrix_dim, matrix_dim, g0_r_t_cl_exl(0, 0, ir, it),
+                                               matrix_dim, g0_rtcex_inverse);
+      dca::linalg::matrixop::inverse(g0_rtcex_inverse, ipiv, work);
+      for (int imd = 0; imd < matrix_dim; ++imd) {
+        g0_rctex_inverse(imd, imd) += disorder_configuration(imd, ir);
+      }
+      // Then apply disorder potential to diagonal according to the
+      // configuration
+      dca::linalg::matrixop::inverse(g0_rtcex_inverse, ipiv, work);
+      dca::linalg::matrixop::copyMatrixToArray(g0_rtcex_inverse,
+                                               disordered_g0_r_t_cl_exl(0, 0, ir, it), matrix_dim);
     }
 }
 

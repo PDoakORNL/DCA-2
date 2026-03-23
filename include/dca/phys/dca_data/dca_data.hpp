@@ -57,6 +57,7 @@
 #include "dca/util/timer.hpp"
 #include "dca/util/to_string.hpp"
 #include "dca/distribution/dist_types.hpp"
+#include "dca/phys/dca_loop/disorder/apply_disorder.hpp"
 #ifdef DCA_WITH_ADIOS2
 #include "dca/io/adios2/adios2_writer.hpp"
 #endif
@@ -111,6 +112,9 @@ public:
                      func::dmn_variadic<BDmn, BDmn, BDmn, BDmn, KClusterDmn, WVertexDmn,
                                         KClusterDmn, WVertexDmn, KExchangeDmn, WExchangeDmn>,
                      DT>;
+
+  // Vector NuDmn * RDmn in size that is the disorder configuration
+  using DisorderConfiguration = func::function<Real, func::dmn_variadic<NuDmn, RClusterDmn>>;
 
   DcaData(Parameters& parameters_ref);
 
@@ -203,8 +207,6 @@ public:
   func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>> G0_r_t_cluster_excluded;
   func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>>
       disordered_G0_r_t_cluster_excluded;
-  // Vector NuDmn * RDmn in size that is the disorder configuration
-  func::function<Real, func::dmn_variadic<NuDmn, RClusterDmn>> disorder_configuration;
 
   func::function<Real, NuDmn> orbital_occupancy;
 
@@ -597,7 +599,6 @@ void DcaData<Parameters, DT>::initialize_G0() {
     // Compute G0_r_w.
     math::transform::FunctionTransform<KClusterDmn, RClusterDmn>::execute(G0_k_w, G0_r_w);
     Symmetrize<Parameters>::execute(G0_r_w, H_symmetry, true);
-    // At this point we can apply the disorder configuration
 
     // Compute G0_r_t.
     math::transform::FunctionTransform<KClusterDmn, RClusterDmn>::execute(G0_k_t, G0_r_t);
@@ -704,6 +705,12 @@ void DcaData<Parameters, DT>::readSigmaFile(io::Reader<Concurrency>& reader) {
   reader.open_group("functions");
   reader.execute(Sigma);
   reader.close_group();
+}
+
+template <class Parameters, DistType DT>
+void DcaData<Parameters, DT>::makeDisordedG0(const DisorderConfiguration& disorder_configuration) {
+  makeDisorderedG0(disorder_configuration, G0_r_t_cluster_excluded,
+                   disordered_G0_r_t_cluster_excluded);
 }
 
 template <class Parameters, DistType DT>
