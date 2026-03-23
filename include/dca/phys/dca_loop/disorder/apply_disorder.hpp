@@ -12,14 +12,14 @@
 #define DCA_PHYS_DCA_LOOP_DISORDER_APPLY_DISORDER_HPP
 #include "dca/linalg/matrixop.hpp"
 #include "dca/phys/dca_data/dca_data.hpp"
-#include <dca_data.hpp>
 #include "dca/linalg/linalg.hpp"
 
-template <class Parameters, DistType DIST>
-auto makeDisorderedG0(
-    const decltype(dca::phys::DcaData::disorder_configuration)& disorder_configuration,
-    const decltype(dca::phys::DcaData::G0_r_t_cluster_excluded)& g0_r_t_cl_exl,
-    decltype(dca::phys::DcaData::disordered_G0_r_t_cluster_excluded)& disordered_g0_r_t_cl_exl) {
+template <class Parameters, DistType DT>
+void DcaData<Parameters, DT>::makeDisorderedG0(
+    const DisorderConfiguration disorder_configuration,
+    const decltype(dca::phys::DcaData<Parameters, DIST>::G0_r_t_cluster_excluded)& g0_r_t_cl_exl,
+    decltype(dca::phys::DcaData<Parameters, DIST>::disordered_G0_r_t_cluster_excluded)&
+        disordered_g0_r_t_cl_exl) {
   int matrix_dim = dca::phys::DcaData::NuDmn::dmn_size();
   dca::linalg::Matrix<std::complex<double, dca::linalg::CPU>> g0_rtcex_inverse(matrix_dim);
   dca::linalg::Vector<int, dca::linalg::CPU> ipiv;

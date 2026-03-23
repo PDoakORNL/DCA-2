@@ -23,6 +23,7 @@
 #include "dca/phys/domains/quantum/dca_iteration_domain.hpp"
 #include "dca/phys/domains/quantum/electron_band_domain.hpp"
 #include "dca/phys/domains/quantum/electron_spin_domain.hpp"
+#include "dca/phys/types/dca_shared_types.hpp"
 #ifdef DCA_HAVE_ADIOS2
 #include "dca/io/adios2/adios2_writer.hpp"
 #endif
@@ -52,6 +53,8 @@ public:
       func::dmn_0<domains::cluster_domain<double, Parameters::lattice_type::DIMENSION, domains::CLUSTER,
                                           domains::REAL_SPACE, domains::BRILLOUIN_ZONE>>;
 
+  using DST = DcaSharedTypes<Parameters>;
+  using DisorderConfiguration = typename DST::DisorderConfiguration;
   DcaLoopData();
 
   template <typename WRITER>
@@ -92,10 +95,7 @@ public:
 
   func::function<double, DCA_iteration_domain_type> average_defect_density;
   func::function<int, DCA_iteration_domain_type> num_defect_configurations;
-  // What should the data structure for the defect configurations look
-  // I think the same as the r_DCA domain with just a +/- 1 likely a
-  // Real to make it easy multiply with the disorder potential
-
+  std::vector<DisorderConfiguration> disorder_configurations;
   int last_completed_iteration = -1;
 };
 
