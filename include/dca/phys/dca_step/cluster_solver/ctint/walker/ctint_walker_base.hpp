@@ -41,7 +41,7 @@
 #include "dca/phys/dca_step/cluster_solver/ctint/walker/tools/d_matrix_builder_gpu.hpp"
 #endif
 
-//#define DEBUG_SUBMATRIX
+// #define DEBUG_SUBMATRIX
 
 namespace dca {
 namespace phys {
@@ -330,7 +330,7 @@ void CtintWalkerBase<Parameters, DIST>::setInteractionVertices(const Data& data,
   vertices_.initialize(parameters.getDoubleUpdateProbability(), parameters.getAllSitesPartnership());
   vertices_.initializeFromHamiltonian(data.H_interactions);
   if (data.has_non_density_interactions()) {
-    vertices_.checkForInterbandPropagators(data.G0_r_t_cluster_excluded);
+    vertices_.checkForInterbandPropagators(data.mutable_G0_r_t_cluster_excluded);
     vertices_.initializeFromNonDensityHamiltonian(data.get_non_density_interactions());
   }
 }

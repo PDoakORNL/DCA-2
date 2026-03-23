@@ -94,19 +94,26 @@ protected:
 
   void perform_cluster_exclusion_step();
 
-  double solve_cluster_problem(int DCA_iteration);
-
   void perform_lattice_mapping();
 
   void update_DCA_loop_data_functions(int DCA_iteration);
 
   void logSelfEnergy(int i);
 
+  /// Temporary name, required to basically curry the disordered G0
+  /// loop around the cluster solver.
+  double workTheClusters();
+  /// The shared steps done once normally or side the accumulation
+  /// loop for disorder
+  double solvingTheCluster();
+
   ParametersType& parameters;
   DcaDataType& MOMS;
   concurrency_type& concurrency;
 
 private:
+  double solve_cluster_problem(int DCA_iteration);
+
   DcaLoopData<ParametersType> DCA_info_struct;
 
   cluster_exclusion_type cluster_exclusion_obj;
@@ -247,7 +254,7 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::execute() {
     // If there is disorder do the disorder application here.
     //
 
-    workClusters();
+    auto L2_Sigma_difference = workTheClusters();
 
     perform_lattice_mapping();
 
@@ -286,27 +293,29 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::execute() {
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
-void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::workClusters() {
-  if (parameters_.get_disorder_num_configurations() > 0) {
+double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::workTheClusters() {
+  if (parameters.get_disorder_num_configurations() > 0) {
     // additional things for summation and getting the post solve G
     // to sum will need to be done here
-    for (int id = 0; id < parameters_.get_disorder_num_configurations()) {
-      MOMS.makeDisorderedG0(disorder_configurations[id]);
+    auto num_configurations = parameters.get_disorder_num_configurations();
+    for (int id = 0; id < num_configurations; ++id) {
+      MOMS.makeDisorderedG0(DCA_info_struct.disorder_configurations[id]);
       solvingTheCluster();
     }
   }
   else {
     // here we solve just the single ordered cluster
-    solvingTheCluster();
+    return solvingTheCluster();
   }
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
-void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solvingTheCluster() {
+double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solvingTheCluster() {
   double L2_Sigma_difference = solve_cluster_problem(dca_iteration_);
   // returned from cluster_solver::finalize
 
   adjust_impurity_self_energy();  // double-counting-correction
+  return L2_Sigma_difference;
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
