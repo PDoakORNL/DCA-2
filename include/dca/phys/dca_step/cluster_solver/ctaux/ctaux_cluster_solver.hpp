@@ -117,7 +117,9 @@ public:
     return g0_;
   };
 
-  typename Walker::Resource& getResource() { return dummy_walker_resource_; };
+  typename Walker::Resource& getResource() {
+    return dummy_walker_resource_;
+  };
 
 protected:
   void warmUp(Walker& walker);
@@ -164,6 +166,7 @@ protected:
   G0Interpolation<device, Scalar> g0_;
 
   typename Walker::Resource dummy_walker_resource_;
+
 private:
   Rng rng_;
 
@@ -230,7 +233,7 @@ template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistTy
 void CtauxClusterSolver<device_t, Parameters, Data, DIST>::initialize(int dca_iteration) {
   dca_iteration_ = dca_iteration;
 
-  g0_.initializeShrinked(data_.G0_r_t_cluster_excluded);
+  g0_.initializeShrinked(data_.mutable_G0_r_t_cluster_excluded);
 
   Sigma_old_ = data_.Sigma;
 
