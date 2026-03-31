@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cassert>
 #include <complex>
+#include <cstddef>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -212,6 +213,8 @@ public:
       G0_r_w_cluster_excluded;
   // Why these are the only G0 tensors that still can be reall or
   // complex I'm not clear.
+  Type_G0_r_t G0_r_t_cluster_excluded;
+
   /// This G0 could be modified by the diagonal disorder scheme, but
   /// normally will just be a copy of the G0_r_t_cluster_excluded
   Type_G0_r_t mutable_G0_r_t_cluster_excluded;
@@ -278,15 +281,14 @@ public:  // Optional members getters.
     return (bool)non_density_interactions_;
   }
 
-  void makeDisordedG0(const DisorderConfiguration& disorder_configuration);
+  void makeDisorderedG0(const DisorderConfiguration& disorder_configuration);
 
 private:  // Optional members.
-  void makeDisordedG0(const DisorderConfiguration& disorder_configuration,
-                      const Type_G0_r_t& g0_r_t_cl_exl, Type_G0_r_t& disordered_G0_r_t_cl_exl);
+  void makeDisorderedG0(const DisorderConfiguration& disorder_configuration,
+                        const Type_G0_r_t& g0_r_t_cl_exl, Type_G0_r_t& disordered_G0_r_t_cl_exl);
 
   /// Due to the new ability to modify the G0 for disorder this is the
   /// immutable g0 from the last iteration.
-  Type_G0_r_t G0_r_t_cluster_excluded;
   std::unique_ptr<SpGreensFunction> G_k_w_err_;
   std::unique_ptr<SpRGreensFunction> G_r_w_err_;
   std::unique_ptr<SpGreensFunction> Sigma_err_;
@@ -592,7 +594,6 @@ void DcaData<Parameters, DT>::initializeH0_and_H_i() {
   }
 
   Parameters::model_type::initialize_H_symmetries(H_symmetry);
-
   compute_band_structure<Parameters>::execute(parameters_, band_structure);
 }
 
@@ -726,7 +727,42 @@ void DcaData<Parameters, DT>::readSigmaFile(io::Reader<Concurrency>& reader) {
 }
 
 template <class Parameters, DistType DT>
-void DcaData<Parameters, DT>::makeDisordedG0(const DisorderConfiguration& disorder_configuration) {
+void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& disorder_configuration,
+                                               const Type_G0_r_t& g0_r_t_cl_exl,
+                                               Type_G0_r_t& disordered_g0_r_t_cl_exl) {
+  int matrix_dim = dca::phys::DcaData<Parameters, DT>::NuDmn::dmn_size();
+  dca::linalg::Matrix<Scalar, dca::linalg::CPU,
+                      dca::linalg::util::DefaultAllocator<Scalar, dca::linalg::CPU>>
+      g0_rtcex_inverse(matrix_dim);
+  // dca::linalg::Vector<int, dca::linalg::CPU,
+  //                     dca::linalg::util::DefaultAllocator<std::complex<double>, dca::linalg::CPU>>
+  //     ipiv;
+  // dca::linalg::Vector<std::complex<double>, dca::linalg::CPU,
+  //                     dca::linalg::util::DefaultAllocator<std::complex<double>, dca::linalg::CPU>>
+  //     work;
+
+  for (int ir = 0; ir < RClusterDmn::dmn_size(); ++ir)
+    for (int it = 0; it < TDmn::dmn_size(); ++it) {
+      dca::linalg::Vector<Scalar, dca::linalg::CPU,
+                          dca::linalg::util::DefaultAllocator<Scalar, dca::linalg::CPU>>
+      rt_block(std::size_t(NuDmn::dmn_size() * NuDmn::dmn_size()));
+      g0_r_t_cl_exl.slice(0, 1, {0, 0, ir, it}, rt_block.data());
+      dca::linalg::matrixop::copyArrayToMatrix(matrix_dim, matrix_dim, rt_block.data(), matrix_dim,
+                                               g0_rtcex_inverse);
+      dca::linalg::matrixop::inverse(g0_rtcex_inverse);  //, ipiv, work);
+      for (int imd = 0; imd < matrix_dim; ++imd) {
+        g0_rtcex_inverse(imd, imd) += disorder_configuration(imd, ir);
+      }
+      // Then apply disorder potential to diagonal according to the
+      // configuration
+      dca::linalg::matrixop::inverse(g0_rtcex_inverse);
+      dca::linalg::matrixop::copyMatrixToArray(g0_rtcex_inverse,
+                                               &disordered_g0_r_t_cl_exl(0, 0, ir, it), matrix_dim);
+    }
+}
+
+template <class Parameters, DistType DT>
+void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& disorder_configuration) {
   makeDisorderedG0(disorder_configuration, G0_r_t_cluster_excluded, mutable_G0_r_t_cluster_excluded);
 }
 
@@ -915,31 +951,6 @@ void DcaData<Parameters, DT>::print_Sigma_QMC_versus_Sigma_cg() {
     }
     std::cout << "\n\n";
   }
-}
-
-template <class Parameters, DistType DT>
-void DcaData<Parameters, DT>::makeDisordedG0(const DisorderConfiguration& disorder_configuration,
-                                             const Type_G0_r_t& g0_r_t_cl_exl,
-                                             Type_G0_r_t& disordered_g0_r_t_cl_exl) {
-  int matrix_dim = dca::phys::DcaData<Parameters, DT>::NuDmn::dmn_size();
-  dca::linalg::Matrix<std::complex<double>, dca::linalg::CPU> g0_rtcex_inverse(matrix_dim);
-  dca::linalg::Vector<int, dca::linalg::CPU> ipiv;
-  dca::linalg::Vector<std::complex<double>, dca::linalg::CPU> work;
-
-  for (int ir = 0; ir < RClusterDmn::dmn_size(); ++ir)
-    for (int it = 0; it < TDmn::dmn_size(); ++it) {
-      dca::linalg::matrixop::copyArrayToMatrix(matrix_dim, matrix_dim, g0_r_t_cl_exl(0, 0, ir, it),
-                                               matrix_dim, g0_rtcex_inverse);
-      dca::linalg::matrixop::inverse(g0_rtcex_inverse, ipiv, work);
-      for (int imd = 0; imd < matrix_dim; ++imd) {
-        g0_rtcex_inverse(imd, imd) += disorder_configuration(imd, ir);
-      }
-      // Then apply disorder potential to diagonal according to the
-      // configuration
-      dca::linalg::matrixop::inverse(g0_rtcex_inverse, ipiv, work);
-      dca::linalg::matrixop::copyMatrixToArray(g0_rtcex_inverse,
-                                               disordered_g0_r_t_cl_exl(0, 0, ir, it), matrix_dim);
-    }
 }
 
 }  // namespace phys
