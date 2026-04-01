@@ -116,6 +116,11 @@ public:
   void logSingleMeasurement(StdThreadAccumulatorType& accumulator, int stamping_period,
                             bool log_MFunction, bool log_MFunctionTime) const;
 
+  /// This collects measurements when dealing with disordered G0
+  void accumulateGkw();
+  /// This collects measurements when dealing with single G0
+  void collectSingle();
+
 private:
   void startWalker(int id);
   void startAccumulator(int id, const Parameters& parameters);
@@ -182,7 +187,7 @@ StdThreadQmciClusterSolver<QmciSolver>::StdThreadQmciClusterSolver(
       accumulators_queue_(),
 
       config_dump_(nr_walkers_)
-      //autocorrelation_data_(parameters_, 0, BaseClass::g0_)
+// autocorrelation_data_(parameters_, 0, BaseClass::g0_)
 {
   if (nr_walkers_ < 1 || nr_accumulators_ < 1) {
     throw std::logic_error(
@@ -367,8 +372,8 @@ void StdThreadQmciClusterSolver<QmciSolver>::startWalker(int id) {
   const int walker_index = thread_task_handler_.walkerIDToRngIndex(id);
 
   auto walker_log = last_iteration_ ? BaseClass::writer_ : nullptr;
-  Walker walker(parameters_, data_, rng_vector_[walker_index], BaseClass::getResource(), concurrency_.get_id(), id,
-                walker_log, BaseClass::g0_);
+  Walker walker(parameters_, data_, rng_vector_[walker_index], BaseClass::getResource(),
+                concurrency_.get_id(), id, walker_log, BaseClass::g0_);
 
   std::unique_ptr<std::exception> exception_ptr;
 
@@ -500,6 +505,16 @@ auto StdThreadQmciClusterSolver<QmciSolver>::computeSingleMeasurement_G_k_w(
 }
 
 template <class QmciSolver>
+void StdThreadQmciClusterSolver<QmciSolver>::accumulateGkw() {
+  QmciSolver::accumulateGkw();
+}
+
+template <class QmciSolver>
+void StdThreadQmciClusterSolver<QmciSolver>::collectSingle() {
+  QmciSolver::collectSingle();
+}
+
+template <class QmciSolver>
 void StdThreadQmciClusterSolver<QmciSolver>::logSingleMeasurement(
     StdThreadAccumulatorType& accumulator_obj, int stamping_period, bool log_MFunction,
     bool log_MFunctionTime) const {
@@ -589,8 +604,8 @@ void StdThreadQmciClusterSolver<QmciSolver>::startWalkerAndAccumulator(int id,
 
   // Create and warm a walker.
   auto walker_log = BaseClass::writer_;
-  Walker walker(parameters_, data_, rng_vector_[id], BaseClass::getResource(), concurrency_.get_id(), id, walker_log,
-                BaseClass::g0_);
+  Walker walker(parameters_, data_, rng_vector_[id], BaseClass::getResource(),
+                concurrency_.get_id(), id, walker_log, BaseClass::g0_);
   initializeAndWarmUp(walker, id, id);
 
   if (id == 0) {
@@ -641,7 +656,7 @@ void StdThreadQmciClusterSolver<QmciSolver>::startWalkerAndAccumulator(int id,
   catch (...) {
     throw std::runtime_error("something mysterious  went wrong in walker thread!");
   }
-			     
+
   ++walk_finished_;
   if (BaseClass::writer_ && BaseClass::writer_->isADIOS2())
     BaseClass::writer_->flush();
