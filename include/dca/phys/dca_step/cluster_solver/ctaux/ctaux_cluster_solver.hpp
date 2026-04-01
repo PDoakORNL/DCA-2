@@ -29,6 +29,7 @@
 #include "dca/function/domains.hpp"
 #include "dca/function/function.hpp"
 #include "dca/linalg/linalg.hpp"
+#include "dca/linalg/util/allocators/allocators.hpp"
 #include "dca/math/function_transform/function_transform.hpp"
 #include "dca/math/statistics/util.hpp"
 #include "dca/parallel/util/get_workload.hpp"
@@ -38,6 +39,7 @@
 #include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/time_correlator.hpp"
 #include "dca/phys/dca_step/symmetrization/symmetrize.hpp"
 #include "dca/phys/domains/cluster/cluster_domain.hpp"
+#include "dca/phys/domains/domain_aliases.hpp"
 #include "dca/phys/domains/quantum/electron_band_domain.hpp"
 #include "dca/phys/domains/quantum/electron_spin_domain.hpp"
 #include "dca/phys/domains/time_and_frequency/frequency_domain.hpp"
@@ -75,6 +77,9 @@ public:
   static constexpr linalg::DeviceType device = device_t;
 
 protected:
+  // The following are deprecated because they don't follow the
+  // naming rules nor are they consistent with other classes aliases
+  // for these domains.
   using w = func::dmn_0<domains::frequency_domain>;
   using b = func::dmn_0<domains::electron_band_domain>;
   using s = func::dmn_0<domains::electron_spin_domain>;
@@ -83,7 +88,9 @@ protected:
   using CDA = ClusterDomainAliases<Parameters::lattice_type::DIMENSION>;
   using RDmn = typename CDA::RClusterDmn;
   using KDmn = typename CDA::KClusterDmn;
-
+  using DDA = DcaDomainAliases<Parameters>;
+  using WDmn = typename DDA::WDmn;
+  using NuDmn = typename DDA::NuDmn;
   using NuNuKClusterWDmn = func::dmn_variadic<nu, nu, KDmn, w>;
   using NuNuRClusterWDmn = func::dmn_variadic<nu, nu, RDmn, w>;
 
@@ -121,6 +128,9 @@ public:
     return dummy_walker_resource_;
   };
 
+  void accumulateGkw();
+  void collectSingle();
+
 protected:
   void warmUp(Walker& walker);
 
@@ -135,6 +145,8 @@ private:
   void collect_measurements();
 
   void compute_G_k_w_from_M_r_w();
+  void accumulateGkwFromMrw(
+      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G_k_w);
 
   double compute_S_k_w_from_G_k_w();
 
@@ -292,15 +304,24 @@ void CtauxClusterSolver<device_t, Parameters, Data, DIST>::integrate() {
 }
 
 template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
-template <typename dca_info_struct_t>
-double CtauxClusterSolver<device_t, Parameters, Data, DIST>::finalize(
-    dca_info_struct_t& dca_info_struct) {
+void CtauxClusterSolver<device_t, Parameters, Data, DIST>::accumulateGkw() {
+  collect_measurements();
+  accumulate_G_k_w_from_M_r_w(data_.G_k_w);
+}
+
+template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
+void CtauxClusterSolver<device_t, Parameters, Data, DIST>::collectSingle() {
   collect_measurements();
   symmetrize_measurements();
 
   // Compute new Sigma.
   compute_G_k_w_from_M_r_w();
+}
 
+template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
+template <typename dca_info_struct_t>
+double CtauxClusterSolver<device_t, Parameters, Data, DIST>::finalize(
+    dca_info_struct_t& dca_info_struct) {
   // FT<k_DCA,r_DCA>::execute(data_.G_k_w, data_.G_r_w);
   math::transform::FunctionTransform<KDmn, RDmn>::execute(data_.G_k_w, data_.G_r_w);
 
@@ -637,6 +658,47 @@ void CtauxClusterSolver<device_t, Parameters, Data, DIST>::compute_G_k_w_from_M_
   }
 
   Symmetrize<Parameters>::execute(data_.G_k_w, data_.H_symmetry);
+}
+
+template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
+void CtauxClusterSolver<device_t, Parameters, Data, DIST>::accumulateGkwFromMrw(
+    func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G_k_w) {
+  func::function<std::complex<double>, NuNuKClusterWDmn> M_k_w;
+  math::transform::FunctionTransform<RDmn, KDmn>::execute(M_r_w_, M_k_w);
+
+  const std::size_t matrix_size = b::dmn_size() * s::dmn_size();
+  linalg::Matrix<std::complex<Real>, dca::linalg::CPU> G0_times_M_matrix(matrix_size);
+  using MatrixView =
+      linalg::MatrixView<std::complex<Real>, dca::linalg::CPU,
+                         linalg::util::DefaultAllocator<std::complex<Real>, dca::linalg::CPU>>;
+
+  // G = G0 - G0*M*G0/beta
+  for (int k_ind = 0; k_ind < KDmn::dmn_size(); k_ind++) {
+    for (int w_ind = 0; w_ind < w::dmn_size(); w_ind++) {
+      // These views make strong assumptions about the function layouts!
+      const MatrixView G0_matrix(&data_.mutable_G0_k_w_cluster_excluded(0, 0, 0, 0, k_ind, w_ind),
+                                 matrix_size);
+      const MatrixView M_matrix(&M_k_w(0, 0, 0, 0, k_ind, w_ind), matrix_size);
+
+      // G0 * M --> G0_times_M_matrix
+      linalg::matrixop::gemm(G0_matrix, M_matrix, G0_times_M_matrix);
+
+      MatrixView G_matrix(&G_k_w(0, 0, 0, 0, k_ind, w_ind), matrix_size);
+
+      // G0_times_M_matrix * G0 --> G_matrix
+      linalg::matrixop::gemm(G0_times_M_matrix, G0_matrix, G_matrix);
+
+      // -G_matrix / beta + G0_cluster_excluded_matrix --> G_matrix
+      for (int j = 0; j < matrix_size; ++j)
+        for (int i = 0; i < matrix_size; ++i)
+          G_matrix(i, j) = -G_matrix(i, j) / parameters_.get_beta() + G0_matrix(i, j);
+    }
+  }
+  data_.accumulated_G_k_w += G_k_w;
+  // This seems pretty dicey to me I think with the disorder some
+  // symmetry is only guaranteed if enough disorder configurations are
+  // summed over.
+  // Symmetrize<Parameters>::execute(data_.G_k_w, data_.H_symmetry);
 }
 
 template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>

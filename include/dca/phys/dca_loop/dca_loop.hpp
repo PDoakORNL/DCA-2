@@ -41,6 +41,8 @@
 #include "dca/util/print_time.hpp"
 #include "dca/util/signal_handler.hpp"
 
+#include "dca/phys/dca_loop/disorder/makeDisorderConfigurations.hpp"
+
 namespace dca {
 namespace phys {
 // dca::phys::
@@ -103,16 +105,16 @@ protected:
   /// Temporary name, required to basically curry the disordered G0
   /// loop around the cluster solver.
   double workTheClusters();
-  /// The shared steps done once normally or side the accumulation
-  /// loop for disorder
-  double solvingTheCluster();
 
   ParametersType& parameters;
   DcaDataType& MOMS;
   concurrency_type& concurrency;
 
 private:
-  double solve_cluster_problem(int DCA_iteration);
+  void solve_cluster_problem(int DCA_iteration);
+  double finalize_cluster_problem();
+  void accumulateGkw();
+  void averageGkw();
 
   DcaLoopData<ParametersType> DCA_info_struct;
 
@@ -256,6 +258,8 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::execute() {
 
     auto L2_Sigma_difference = workTheClusters();
 
+    adjust_impurity_self_energy();  // double-counting-correction
+
     perform_lattice_mapping();
 
     update_DCA_loop_data_functions(dca_iteration_);  // Really just updates
@@ -297,25 +301,22 @@ double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::workTheClus
   if (parameters.get_disorder_num_configurations() > 0) {
     // additional things for summation and getting the post solve G
     // to sum will need to be done here
-    auto num_configurations = parameters.get_disorder_num_configurations();
+    MakeDisorderConfigurations<ParametersType> make_disorder_configurations;
+    make_disorder_configurations(parameters, DCA_info_struct.disorder_configurations);
+    int num_configurations = DCA_info_struct.disorder_configurations.size();
     for (int id = 0; id < num_configurations; ++id) {
       MOMS.makeDisorderedG0(DCA_info_struct.disorder_configurations[id]);
-      solvingTheCluster();
+      solve_cluster_problem(dca_iteration_);
     }
+    averageGkw();
   }
   else {
     // here we solve just the single ordered cluster
-    return solvingTheCluster();
+    solve_cluster_problem(dca_iteration_);
+    monte_carlo_integrator_.collectSingle();
   }
-}
-
-template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
-double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solvingTheCluster() {
-  double L2_Sigma_difference = solve_cluster_problem(dca_iteration_);
-  // returned from cluster_solver::finalize
-
-  adjust_impurity_self_energy();  // double-counting-correction
-  return L2_Sigma_difference;
+  auto L2_Sigma_Difference = finalize_cluster_problem();
+  return L2_Sigma_Difference;
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
@@ -398,7 +399,7 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::perform_clust
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
-double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solve_cluster_problem(
+void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solve_cluster_problem(
     int DCA_iteration) {
   //  static_assert(std::is_same<DcaDataType, ::DcaDataType<DIST>>::value);
   // static_assert(std::is_same<MCIntegratorType, ::ClusterSolver<DIST>>::value);
@@ -414,18 +415,33 @@ double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solve_clust
 
   if (output_file_ && output_file_->isADIOS2())
     output_file_->flush();
+}
 
-  {
-    if (concurrency.id() == concurrency.first())
-      std::cout << "start Monte Carlo integration finalize.\n";
+template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
+void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::accumulateGkw() {
+  monte_carlo_integrator_.accumulateGkw();
+}
 
-    profiler_type profiler("finalize cluster-solver", "DCA", __LINE__);
-    double L2_Sigma_difference = monte_carlo_integrator_.finalize(DCA_info_struct);
-    if (concurrency.id() == concurrency.first())
-      std::cout << "Monte Carlo integration finalized.\n";
+template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
+void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::averageGkw() {
+  MOMS.G_k_w = MOMS.accumulated_G_k_w;
+  MOMS.G_k_w /= parameters.get_disorder_num_configurations();
+}
 
-    return L2_Sigma_difference;
-  }
+template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
+double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::finalize_cluster_problem() {
+  if (concurrency.id() == concurrency.first())
+    std::cout << "start Monte Carlo integration finalize.\n";
+
+  profiler_type profiler("finalize cluster-solver", "DCA", __LINE__);
+
+  // So what we do here varies if disorder is activated.
+
+  double L2_Sigma_difference = monte_carlo_integrator_.finalize(DCA_info_struct);
+  if (concurrency.id() == concurrency.first())
+    std::cout << "Monte Carlo integration finalized.\n";
+
+  return L2_Sigma_difference;
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
