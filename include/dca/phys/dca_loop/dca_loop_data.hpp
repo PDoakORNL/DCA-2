@@ -97,6 +97,7 @@ public:
   func::function<double, DCA_iteration_domain_type> average_defect_density;
   func::function<int, DCA_iteration_domain_type> num_defect_configurations;
   std::vector<DisorderConfiguration> disorder_configurations;
+  std::vector<double> disorder_weights;
   int last_completed_iteration = -1;
 };
 

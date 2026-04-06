@@ -59,6 +59,7 @@
 #include "dca/util/to_string.hpp"
 #include "dca/distribution/dist_types.hpp"
 #include "dca/phys/types/dca_shared_types.hpp"
+#include "dca/util/type_help.hpp"
 #ifdef DCA_WITH_ADIOS2
 #include "dca/io/adios2/adios2_writer.hpp"
 #endif
@@ -770,8 +771,27 @@ void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& diso
   // Giving up at this point in side effect free method.
   math::transform::FunctionTransform<RClusterDmn, KClusterDmn>::execute(
       disordered_g0_r_t_cl_exl, mutable_G0_k_t_cluster_excluded);
-  // math::transform::FunctionTransform<TDmn, WDmn>::execute(mutable_G0_k_t_cluster_excluded,
-  //                                                         mutable_G0_k_w_cluster_excluded);
+
+  // I can't figure out how to get this to work with the
+  // math::transform::FunctionTransform framwork so do this by hand
+  // here.
+  using Complex = std::complex<util::RealAlias<Scalar>>;
+  for (int k = 0; k < KClusterDmn::dmn_size(); ++k) {
+    const auto& k_val = KClusterDmn::get_elements()[k];
+    for (int inu1 = 0; inu1 < NuDmn::dmn_size(); ++inu1)
+      for (int inu2 = 0; inu2 < NuDmn::dmn_size(); ++inu2) {
+        for (int w = 0; w < WDmn::dmn_size(); ++w) {
+          const auto& w_val = WDmn::get_elements()[w];
+          Complex G_k_omega(0);
+          for (int t = 0; t < TDmn::dmn_size(); ++t) {
+            const auto& t_val = TDmn::get_elements()[t];
+            G_k_omega += mutable_G0_k_t_cluster_excluded(inu1, inu2, k, t) *
+                         std::exp(Complex(0, w_val * t_val));
+          }
+          mutable_G0_k_w_cluster_excluded(inu1, inu2, k, w) = G_k_omega;
+        }
+      }
+  }
 }
 
 template <class Parameters, DistType DT>
