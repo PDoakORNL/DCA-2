@@ -117,7 +117,7 @@ public:
                             bool log_MFunction, bool log_MFunctionTime) const;
 
   /// This collects measurements when dealing with disordered G0
-  void accumulateGkw();
+  void accumulateGkw(double weight);
   /// This collects measurements when dealing with single G0
   void collectSingle();
 
@@ -505,8 +505,8 @@ auto StdThreadQmciClusterSolver<QmciSolver>::computeSingleMeasurement_G_k_w(
 }
 
 template <class QmciSolver>
-void StdThreadQmciClusterSolver<QmciSolver>::accumulateGkw() {
-  QmciSolver::accumulateGkw();
+void StdThreadQmciClusterSolver<QmciSolver>::accumulateGkw(double weight) {
+  QmciSolver::accumulateGkw(weight);
 }
 
 template <class QmciSolver>

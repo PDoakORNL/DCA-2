@@ -113,7 +113,7 @@ protected:
 private:
   void solve_cluster_problem(int DCA_iteration);
   double finalize_cluster_problem();
-  void accumulateGkw();
+  void accumulateGkw(double weight);
   void averageGkw();
 
   DcaLoopData<ParametersType> DCA_info_struct;
@@ -302,10 +302,12 @@ double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::workTheClus
     // additional things for summation and getting the post solve G
     // to sum will need to be done here
     MakeDisorderConfigurations<ParametersType> make_disorder_configurations;
-    make_disorder_configurations(parameters, DCA_info_struct.disorder_configurations);
+    make_disorder_configurations(parameters, DCA_info_struct.disorder_configurations,
+                                 DCA_info_struct.disorder_weights);
     int num_configurations = DCA_info_struct.disorder_configurations.size();
     for (int id = 0; id < num_configurations; ++id) {
       MOMS.makeDisorderedG0(DCA_info_struct.disorder_configurations[id]);
+      std::cout << "Solving disorder configuration " << id << '\n';
       solve_cluster_problem(dca_iteration_);
     }
     averageGkw();
@@ -418,14 +420,18 @@ void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::solve_cluster
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
-void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::accumulateGkw() {
-  monte_carlo_integrator_.accumulateGkw();
+void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::accumulateGkw(double weight) {
+  monte_carlo_integrator_.accumulateGkw(weight);
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>
 void DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::averageGkw() {
   MOMS.G_k_w = MOMS.accumulated_G_k_w;
-  MOMS.G_k_w /= parameters.get_disorder_num_configurations();
+  auto& disorder_weights = DCA_info_struct.disorder_weights;
+  auto total_disorder_weight = std::accumulate(disorder_weights.begin(), disorder_weights.end(), 0.0);
+  MOMS.G_k_w /= total_disorder_weight;
+  std::cout << " Averaged over " << disorder_weights.size()
+            << " disorder configurations with weight " << total_disorder_weight << '\n';
 }
 
 template <typename ParametersType, typename DcaDataType, typename MCIntegratorType, DistType DIST>

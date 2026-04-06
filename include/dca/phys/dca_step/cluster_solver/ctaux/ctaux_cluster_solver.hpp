@@ -128,7 +128,7 @@ public:
     return dummy_walker_resource_;
   };
 
-  void accumulateGkw();
+  void accumulateGkw(double weight);
   void collectSingle();
 
 protected:
@@ -146,7 +146,8 @@ private:
 
   void compute_G_k_w_from_M_r_w();
   void accumulateGkwFromMrw(
-      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G_k_w);
+      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G_k_w,
+      double weight);
 
   double compute_S_k_w_from_G_k_w();
 
@@ -304,9 +305,9 @@ void CtauxClusterSolver<device_t, Parameters, Data, DIST>::integrate() {
 }
 
 template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
-void CtauxClusterSolver<device_t, Parameters, Data, DIST>::accumulateGkw() {
+void CtauxClusterSolver<device_t, Parameters, Data, DIST>::accumulateGkw(double weight) {
   collect_measurements();
-  accumulate_G_k_w_from_M_r_w(data_.G_k_w);
+  accumulateGkwfromMrw(data_.G_k_w);
 }
 
 template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
@@ -662,7 +663,8 @@ void CtauxClusterSolver<device_t, Parameters, Data, DIST>::compute_G_k_w_from_M_
 
 template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
 void CtauxClusterSolver<device_t, Parameters, Data, DIST>::accumulateGkwFromMrw(
-    func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G_k_w) {
+    func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G_k_w,
+    double weight) {
   func::function<std::complex<double>, NuNuKClusterWDmn> M_k_w;
   math::transform::FunctionTransform<RDmn, KDmn>::execute(M_r_w_, M_k_w);
 
@@ -694,7 +696,7 @@ void CtauxClusterSolver<device_t, Parameters, Data, DIST>::accumulateGkwFromMrw(
           G_matrix(i, j) = -G_matrix(i, j) / parameters_.get_beta() + G0_matrix(i, j);
     }
   }
-  data_.accumulated_G_k_w += G_k_w;
+  data_.accumulated_G_k_w += G_k_w * weight;
   // This seems pretty dicey to me I think with the disorder some
   // symmetry is only guaranteed if enough disorder configurations are
   // summed over.
