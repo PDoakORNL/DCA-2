@@ -128,8 +128,16 @@ private:
 
   void initializeAndWarmUp(Walker& walker, int id, int walker_id);
 
-  void readConfigurations();
-  void writeConfigurations() const;
+  /** readConfigurations needs to be aware that there are different
+   *  vertex configurations for difference disorder configurations
+   *  but this is perhaps not very useful now since we generate new
+   *  disorder configurations for each iteration.
+   */
+  void readConfigurations(int disorder_configuiration = -1);
+  /** writeConfigurations needs to be aware that there are different
+   *  vertex configurations for difference disorder configurations
+   */
+  void writeConfigurations(int disorder_configuration = -1) const;
 
   void iterateOverLocalMeasurements(int walker_id, std::function<void(int, int, bool)>&& f);
 
@@ -266,7 +274,6 @@ void StdThreadQmciClusterSolver<QmciSolver>::integrate() {
 
     dca::profiling::Duration duration(end_time, start_time);
     total_time_ = duration.sec + 1.e-6 * duration.usec;
-
     printIntegrationMetadata();
   };
 
@@ -281,7 +288,7 @@ void StdThreadQmciClusterSolver<QmciSolver>::integrate() {
 
   print_metadata();
 
-  if (parameters_.store_configuration()) {
+  if (parameters_.store_configuration() && parameters_.get_disorder_num_configurations() <= 0) {
     if (BaseClass::writer_) {
       if (BaseClass::writer_->isADIOS2()) {
         BaseClass::writer_->open_group("Configurations");
@@ -352,8 +359,8 @@ double StdThreadQmciClusterSolver<QmciSolver>::finalize(dca_info_struct_t& dca_i
     }
 
     // Write and reset autocorrelation.
-    std::cout << "Writing autocorrelation data\n";
-    std::cout << "Autocorrelation incompatible with complex G0 and GPU";
+    // std::cout << "Writing autocorrelation data\n";
+    // std::cout << "Autocorrelation incompatible with complex G0 and GPU";
     // autocorrelation_data_.write(*BaseClass::writer_, dca_iteration_);
   }
   // autocorrelation_data_.reset();
@@ -693,13 +700,16 @@ void StdThreadQmciClusterSolver<QmciSolver>::finalizeWalker(Walker& walker, int 
 }
 
 template <class QmciSolver>
-void StdThreadQmciClusterSolver<QmciSolver>::writeConfigurations() const {
+void StdThreadQmciClusterSolver<QmciSolver>::writeConfigurations(int disorder_configuration) const {
   if (parameters_.get_directory_config_write() == "")
     return;
 
   try {
+    std::string config_label;
+    if (disorder_configuration >= 0)
+      config_label = "_disorder_config_" + std::to_string(disorder_configuration);
     const std::string out_name = parameters_.get_directory_config_write() + "/process_" +
-                                 std::to_string(concurrency_.id()) + ".hdf5";
+                                 std::to_string(concurrency_.id()) + config_label + ".hdf5";
     io::HDF5Writer writer(false);
     writer.open_file(out_name);
     for (int id = 0; id < config_dump_.size(); ++id)
@@ -711,15 +721,19 @@ void StdThreadQmciClusterSolver<QmciSolver>::writeConfigurations() const {
 }
 
 template <class QmciSolver>
-void StdThreadQmciClusterSolver<QmciSolver>::readConfigurations() {
+void StdThreadQmciClusterSolver<QmciSolver>::readConfigurations(int disorder_configuration) {
   if (parameters_.get_directory_config_read() == "")
     return;
 
   Profiler profiler(__FUNCTION__, "stdthread-MC", __LINE__);
 
   try {
+    std::string config_label;
+    if (disorder_configuration >= 0)
+      config_label = "_disorder_config_" + std::to_string(disorder_configuration);
+
     const std::string inp_name = parameters_.get_directory_config_read() + "/process_" +
-                                 std::to_string(concurrency_.id()) + ".hdf5";
+                                 std::to_string(concurrency_.id()) + config_label + ".hdf5";
     io::HDF5Reader reader(false);
     reader.open_file(inp_name);
     for (int id = 0; id < config_dump_.size(); ++id)
