@@ -11,8 +11,8 @@
 // Implementation of  the two-orbital model described in "Two pairing domes as Cu2+ varies to Cu3+."
 // https://link.aps.org/doi/10.1103/PhysRevB.99.224515
 
-#ifndef DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_THREEBAND_GENERIC_LATTICE_HPP
-#define DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_THREEBAND_GENERIC_LATTICE_HPP
+#ifndef DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_THREEBAND_LATTICE_HPP
+#define DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_THREEBAND_LATTICE_HPP
 
 #include <algorithm>
 #include <cmath>
@@ -34,7 +34,7 @@ namespace models {
 // dca::phys::models::
 
 template <typename SymmetryGroup>
-class ThreebandHubbardGeneric {
+class ThreebandHubbard {
 public:
   static constexpr bool complex_g0 = false;
   static constexpr bool spin_symmetric = true;
@@ -85,7 +85,7 @@ public:
 };
 
 template <typename PointGroupType>
-int ThreebandHubbardGeneric<PointGroupType>::transformationSignOfR(int b1, int b2, int s) {
+int ThreebandHubbard<PointGroupType>::transformationSignOfR(int b1, int b2, int s) {
   if (!std::is_same<PointGroupType, domains::D4>::value)
     return 1;
 
@@ -110,7 +110,7 @@ int ThreebandHubbardGeneric<PointGroupType>::transformationSignOfR(int b1, int b
 }
 
 template <typename PointGroupType>
-int ThreebandHubbardGeneric<PointGroupType>::transformationSignOfK(int b1, int b2, int s) {
+int ThreebandHubbard<PointGroupType>::transformationSignOfK(int b1, int b2, int s) {
   if (!std::is_same<PointGroupType, domains::D4>::value)
     return 1;
 
@@ -121,48 +121,48 @@ int ThreebandHubbardGeneric<PointGroupType>::transformationSignOfK(int b1, int b
 }
 
 template <typename PointGroupType>
-const double* ThreebandHubbardGeneric<PointGroupType>::initializeRDCABasis() {
+const double* ThreebandHubbard<PointGroupType>::initializeRDCABasis() {
   static std::array<double, 4> basis{1, 0, 0, 1};
   return basis.data();
 }
 
 template <typename PointGroupType>
-const double* ThreebandHubbardGeneric<PointGroupType>::initializeKDCABasis() {
+const double* ThreebandHubbard<PointGroupType>::initializeKDCABasis() {
   static std::array<double, 4> basis{2 * M_PI, 0, 0, 2 * M_PI};
   return basis.data();
 }
 
 template <typename PointGroupType>
-const double* ThreebandHubbardGeneric<PointGroupType>::initializeRLDABasis() {
+const double* ThreebandHubbard<PointGroupType>::initializeRLDABasis() {
   static std::array<double, 4> basis{1, 0, 0, 1};
   return basis.data();
 }
 
 template <typename PointGroupType>
-const double* ThreebandHubbardGeneric<PointGroupType>::initializeKLDABasis() {
+const double* ThreebandHubbard<PointGroupType>::initializeKLDABasis() {
   static std::array<double, 4> basis{2 * M_PI, 0, 0, 2 * M_PI};
   return basis.data();
 }
 
 template <typename PointGroupType>
-std::vector<int> ThreebandHubbardGeneric<PointGroupType>::flavors() {
+std::vector<int> ThreebandHubbard<PointGroupType>::flavors() {
   return {0, 1, 1};
 }
 
 template <typename PointGroupType>
-std::vector<std::vector<double>> ThreebandHubbardGeneric<PointGroupType>::aVectors() {
+std::vector<std::vector<double>> ThreebandHubbard<PointGroupType>::aVectors() {
   return {{0, 0}, {0.5, 0}, {0, 0.5}};
 }
 
 template <typename PointGroupType>
 std::vector<std::pair<std::pair<int, int>, std::pair<int, int>>>
-ThreebandHubbardGeneric<PointGroupType>::orbitalPermutations() {
+ThreebandHubbard<PointGroupType>::orbitalPermutations() {
   return {};
 }
 
 template <typename PointGroupType>
 template <typename BandDmn, typename SpinDmn, typename RDmn, typename parameters_type>
-void ThreebandHubbardGeneric<PointGroupType>::initializeHInteraction(
+void ThreebandHubbard<PointGroupType>::initializeHInteraction(
     func::function<double, func::dmn_variadic<func::dmn_variadic<BandDmn, SpinDmn>,
                                               func::dmn_variadic<BandDmn, SpinDmn>, RDmn>>& H_interaction,
     const parameters_type& parameters) {
@@ -271,14 +271,14 @@ void ThreebandHubbardGeneric<PointGroupType>::initializeHInteraction(
 
 template <typename PointGroupType>
 template <class domain>
-void ThreebandHubbardGeneric<PointGroupType>::initializeHSymmetry(
+void ThreebandHubbard<PointGroupType>::initializeHSymmetry(
     func::function<int, domain>& H_symmetries) {
   H_symmetries = -1;
 }
 
 template <typename PointGroupType>
 template <typename ParametersType, typename ScalarType, typename BandDmn, typename SpinDmn, typename KDmn>
-void ThreebandHubbardGeneric<PointGroupType>::initializeH0(
+void ThreebandHubbard<PointGroupType>::initializeH0(
     const ParametersType& parameters,
     func::function<ScalarType, func::dmn_variadic<func::dmn_variadic<BandDmn, SpinDmn>,
     func::dmn_variadic<BandDmn, SpinDmn>, KDmn>>& H_0) {
@@ -288,7 +288,7 @@ void ThreebandHubbardGeneric<PointGroupType>::initializeH0(
 
 template <typename PointGroupType>
 template <typename ParametersType, typename ScalarType, typename BandDmn, typename SpinDmn, typename KDmn>
-void ThreebandHubbardGeneric<PointGroupType>::initializeH0WithQ(
+void ThreebandHubbard<PointGroupType>::initializeH0WithQ(
     const ParametersType& parameters,
     func::function<ScalarType, func::dmn_variadic<func::dmn_variadic<BandDmn, SpinDmn>,
     func::dmn_variadic<BandDmn, SpinDmn>, KDmn>>& H_0, typename KDmn::element_type q) {
@@ -344,4 +344,4 @@ void ThreebandHubbardGeneric<PointGroupType>::initializeH0WithQ(
 }  // namespace phys
 }  // namespace dca
 
-#endif  // DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_THREEBAND_GENERIC_LATTICE_HPP
+#endif  // DCA_PHYS_MODELS_ANALYTIC_HAMILTONIANS_THREEBAND_LATTICE_HPP
