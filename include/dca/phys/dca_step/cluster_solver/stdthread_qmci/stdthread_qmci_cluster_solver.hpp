@@ -241,6 +241,20 @@ void StdThreadQmciClusterSolver<QmciSolver>::initialize(int dca_iteration) {
 }
 
 template <class QmciSolver>
+void StdThreadQmciClusterSolver<QmciSolver>::initialize(int dca_iteration, ) {
+  Profiler profiler(__FUNCTION__, "stdthread-MC-Integration", __LINE__);
+
+  last_iteration_ = dca_iteration == parameters_.get_dca_iterations() - 1;
+
+  measurements_ = parameters_.get_measurements()[dca_iteration];
+
+  BaseClass::initialize(dca_iteration);
+
+  walk_finished_ = 0;
+  measurements_done_ = 0;
+}
+
+template <class QmciSolver>
 void StdThreadQmciClusterSolver<QmciSolver>::integrate() {
   Profiler profiler(__FUNCTION__, "stdthread-MC-Integration", __LINE__);
 

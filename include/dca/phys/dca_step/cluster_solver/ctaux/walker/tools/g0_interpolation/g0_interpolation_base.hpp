@@ -127,10 +127,10 @@ void G0InterpolationBase<Parameters>::initialize_linear_coefficients(Data& data)
       for (int nu1_ind = 0; nu1_ind < b::dmn_size() * s::dmn_size(); nu1_ind++) {
         for (int nu0_ind = 0; nu0_ind < b::dmn_size() * s::dmn_size(); nu0_ind++) {
           G0_r_t_shifted(nu0_ind, nu1_ind, r_ind, t_ind) =
-              data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
+              data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
           grad_G0_r_t_shifted(nu0_ind, nu1_ind, r_ind, t_ind) =
-              (data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind + 1) -
-               data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind));
+              (data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind + 1) -
+               data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind));
         }
       }
     }
@@ -141,10 +141,10 @@ void G0InterpolationBase<Parameters>::initialize_linear_coefficients(Data& data)
       for (int nu1_ind = 0; nu1_ind < b::dmn_size() * s::dmn_size(); nu1_ind++) {
         for (int nu0_ind = 0; nu0_ind < b::dmn_size() * s::dmn_size(); nu0_ind++) {
           G0_r_t_shifted(nu0_ind, nu1_ind, r_ind, t_ind - 1) =
-              data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
+              data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
           grad_G0_r_t_shifted(nu0_ind, nu1_ind, r_ind, t_ind - 1) =
-              (data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind + 1) -
-               data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind));
+              (data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind + 1) -
+               data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind));
         }
       }
     }
@@ -169,7 +169,7 @@ void G0InterpolationBase<Parameters>::initialize_akima_coefficients(Data& data) 
       for (int nu1_ind = 0; nu1_ind < b::dmn_size() * s::dmn_size(); nu1_ind++) {
         for (int nu0_ind = 0; nu0_ind < b::dmn_size() * s::dmn_size(); nu0_ind++) {
           for (int t_ind = 0; t_ind < t::dmn_size() / 2; t_ind++)
-            y[t_ind] = data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
+            y[t_ind] = data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
 
           ai_obj.initialize(x, y);
 
@@ -187,7 +187,7 @@ void G0InterpolationBase<Parameters>::initialize_akima_coefficients(Data& data) 
         for (int nu0_ind = 0; nu0_ind < b::dmn_size() * s::dmn_size(); nu0_ind++) {
           for (int t_ind = t::dmn_size() / 2; t_ind < t::dmn_size(); t_ind++)
             y[t_ind - t::dmn_size() / 2] =
-                data.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
+                data.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
 
           ai_obj.initialize(x, y);
 

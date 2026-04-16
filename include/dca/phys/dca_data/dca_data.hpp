@@ -106,8 +106,12 @@ public:
 
   using SpGreensFunction =
       func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KClusterDmn, WDmn>>;
+  using SpDisorderedGreensFunction =
+      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, KClusterDmn, NuDmn, KClusterDmn, WDmn>>;
   using SpRGreensFunction =
       func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, WDmn>>;
+  using SpRDisorderedGreensFunction =
+      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, RClusterDmn NuDmn, RClusterDmn, WDmn>>;
 
   using TpGreensFunction =
       func::function<TpComplex,
@@ -120,6 +124,13 @@ public:
   using Type_G0_k_t =
       func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KClusterDmn, TDmn>>;
   using Type_G0_r_t = func::function<Scalar, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, TDmn>>;
+
+  using Disordered_G0_k_k_w =
+      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, KClusterDmn, NuDmn, KClusterDmn, WDmn>>;
+  using Disordered_G0_k_k_t =
+      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, KClusterDmn, NuDmn, KClusterDmn, TDmn>>;
+  using Disordered_G0_r_r_t =
+      func::function<Scalar, func::dmn_variadic<NuDmn, RClusterDmn, NuDmn, RClusterDmn, TDmn>>;
 
   // Vector NuDmn * RDmn in size that is the disorder configuration
   using DST = DcaSharedTypes<Parameters>;
@@ -138,6 +149,9 @@ public:
 
   template <typename Writer>
   void write(Writer& writer);
+
+  template <typename Writer>
+  void writeDisorderConfiguration(Writer& writer);
 
 #ifdef DCA_WITH_ADIOS2
   void writeDistributedG4Adios(io::ADIOS2Writer<Concurrency>& writer);
@@ -218,11 +232,10 @@ public:
   // complex I'm not clear.
   Type_G0_r_t G0_r_t_cluster_excluded;
 
-  /// This G0 could be modified by the diagonal disorder scheme, but
-  /// normally will just be a copy of the G0_r_t_cluster_excluded
-  Type_G0_r_t mutable_G0_r_t_cluster_excluded;
-  Type_G0_k_w mutable_G0_k_w_cluster_excluded;
-  Type_G0_k_t mutable_G0_k_t_cluster_excluded;
+  /// These G0 are only used when diagonal disorder is applied
+  Disordered_G0_r_r_t disordered_G0_r_r_t_cl_exl;
+  Disordered_G0_k_k_w disordered_G0_k_k_w_cl_exl;
+  Disordered_G0_k_k_t disordered_G0_k_k_t_cl_exl;
 
   func::function<Real, NuDmn> orbital_occupancy;
 
@@ -290,7 +303,7 @@ public:  // Optional members getters.
 
 private:  // Optional members.
   void makeDisorderedG0(const DisorderConfiguration& disorder_configuration,
-                        const Type_G0_r_t& g0_r_t_cl_exl, Type_G0_r_t& disordered_G0_r_t_cl_exl);
+                        const Type_G0_r_t& g0_r_t_cl_exl);
 
   /// Due to the new ability to modify the G0 for disorder this is the
   /// immutable g0 from the last iteration.
@@ -566,6 +579,14 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
 }
 
 template <class Parameters, DistType DT>
+template <typename Writer>
+void DcaData<Parameters, DT>::writeDisorderConfiguration(Writer& writer) {
+  if (parameters_.dump_cluster_Greens_functions()) {
+    writer.execute(G_k_w);
+  }
+}
+
+template <class Parameters, DistType DT>
 void DcaData<Parameters, DT>::initialize() {
   initializeH0_and_H_i();
   initialize_G0();
@@ -632,9 +653,6 @@ void DcaData<Parameters, DT>::initialize_G0() {
     G0_k_t_cluster_excluded = G0_k_t;
     G0_r_w_cluster_excluded = G0_r_w;
     G0_r_t_cluster_excluded = G0_r_t;
-    // When there is no disorder in G0 mutable just gets the unmodified G0_r_t
-    mutable_G0_r_t_cluster_excluded = G0_r_t;
-    mutable_G0_k_w_cluster_excluded = G0_k_w;
   }
   catch (const std::exception& exc) {
     std::throw_with_nested(std::runtime_error("Failure in initialization of G0!"));
@@ -734,12 +752,16 @@ void DcaData<Parameters, DT>::readSigmaFile(io::Reader<Concurrency>& reader) {
 
 template <class Parameters, DistType DT>
 void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& disorder_configuration,
-                                               const Type_G0_r_t& g0_r_t_cl_exl,
-                                               Type_G0_r_t& disordered_g0_r_t_cl_exl) {
-  int matrix_dim = dca::phys::DcaData<Parameters, DT>::NuDmn::dmn_size();
+                                               const Type_G0_r_t& g0_r_t_cl_exl) {
+  int nu_matrix_dim = NuDmn::dmn_size();
   dca::linalg::Matrix<Scalar, dca::linalg::CPU,
                       dca::linalg::util::DefaultAllocator<Scalar, dca::linalg::CPU>>
-      g0_rtcex_inverse(matrix_dim);
+      g0_rtcex_inverse(nu_matrix_dim);
+
+  int nu_r_matrix_dim = NuDmn::dmn_size() * RClusterDmn::dmn_size();
+  dca::linalg::Matrix<Scalar, dca::linalg::CPU,
+                      dca::linalg::util::DefaultAllocator<Scalar, dca::linalg::CPU>>
+      g0_dis_tcex_inverse(nu_r_matrix_dim);
   // dca::linalg::Vector<int, dca::linalg::CPU,
   //                     dca::linalg::util::DefaultAllocator<std::complex<double>, dca::linalg::CPU>>
   //     ipiv;
@@ -747,56 +769,65 @@ void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& diso
   //                     dca::linalg::util::DefaultAllocator<std::complex<double>, dca::linalg::CPU>>
   //     work;
 
-  for (int ir = 0; ir < RClusterDmn::dmn_size(); ++ir)
-    for (int it = 0; it < TDmn::dmn_size(); ++it) {
-      dca::linalg::Vector<Scalar, dca::linalg::CPU,
-                          dca::linalg::util::DefaultAllocator<Scalar, dca::linalg::CPU>>
-      rt_block(std::size_t(NuDmn::dmn_size() * NuDmn::dmn_size()));
+  dca::linalg::Vector<Scalar, dca::linalg::CPU,
+                      dca::linalg::util::DefaultAllocator<Scalar, dca::linalg::CPU>>
+  rt_block(std::size_t(NuDmn::dmn_size() * NuDmn::dmn_size()));
+
+  for (int it = 0; it < TDmn::dmn_size(); ++it) {
+    for (int ir = 0; ir < RClusterDmn::dmn_size(); ++ir) {
       g0_r_t_cl_exl.slice(0, 1, {0, 0, ir, it}, rt_block.data());
-      dca::linalg::matrixop::copyArrayToMatrix(matrix_dim, matrix_dim, rt_block.data(), matrix_dim,
-                                               g0_rtcex_inverse);
+      dca::linalg::matrixop::copyArrayToMatrix(nu_matrix_dim, nu_matrix_dim, rt_block.data(),
+                                               nu_matrix_dim, g0_rtcex_inverse);
       dca::linalg::matrixop::inverse(g0_rtcex_inverse);  //, ipiv, work);
 
       // Then apply disorder potential to diagonal according to the
       // configuration
-      for (int imd = 0; imd < matrix_dim; ++imd) {
+      for (int imd = 0; imd < nu_matrix_dim; ++imd) {
         g0_rtcex_inverse(imd, imd) += disorder_configuration(imd, ir);
       }
 
-      dca::linalg::matrixop::inverse(g0_rtcex_inverse);
-      dca::linalg::matrixop::copyMatrixToArray(g0_rtcex_inverse,
-                                               &disordered_g0_r_t_cl_exl(0, 0, ir, it), matrix_dim);
+      // then add the block to the big matrix.
+      for (int i = 0; i < nu_matrix_dim; ++i)
+        for (int j = 0; i < nu_matrix_dim; ++j)
+          g0_dis_tcex_inverse(nu_matrix_dim * ir + i, nu_matrix_dim * ir + j);
     }
+    dca::linalg::matrixop::inverse(g0_dis_tcex_inverse);
+    dca::linalg::matrixop::copyMatrixToArray(
+        g0_dis_tcex_inverse, &disordered_G0_r_r_t_cl_exl(0, 0, 0, 0, it), nu_r_matrix_dim);
+  }
 
   // Giving up at this point in side effect free method.
-  math::transform::FunctionTransform<RClusterDmn, KClusterDmn>::execute(
-      disordered_g0_r_t_cl_exl, mutable_G0_k_t_cluster_excluded);
+  math::transform::FunctionTransform<RClusterDmn, KClusterDmn>::execute(disordered_G0_r_r_t_cl_exl,
+                                                                        disordered_G0_k_k_t_cl_exl);
 
   // I can't figure out how to get this to work with the
   // math::transform::FunctionTransform framwork so do this by hand
   // here.
   using Complex = std::complex<util::RealAlias<Scalar>>;
-  for (int k = 0; k < KClusterDmn::dmn_size(); ++k) {
-    const auto& k_val = KClusterDmn::get_elements()[k];
-    for (int inu1 = 0; inu1 < NuDmn::dmn_size(); ++inu1)
-      for (int inu2 = 0; inu2 < NuDmn::dmn_size(); ++inu2) {
-        for (int w = 0; w < WDmn::dmn_size(); ++w) {
-          const auto& w_val = WDmn::get_elements()[w];
-          Complex G_k_omega(0);
-          for (int t = 0; t < TDmn::dmn_size(); ++t) {
-            const auto& t_val = TDmn::get_elements()[t];
-            G_k_omega += mutable_G0_k_t_cluster_excluded(inu1, inu2, k, t) *
-                         std::exp(Complex(0, w_val * t_val));
+  for (int k1 = 0; k1 < KClusterDmn::dmn_size(); ++k1) {
+    const auto& k1_val = KClusterDmn::get_elements()[k1];
+    for (int k2 = 0; k2 < KClusterDmn::dmn_size(); ++k2) {
+      const auto& k2_val = KClusterDmn::get_elements()[k2];
+      for (int inu1 = 0; inu1 < NuDmn::dmn_size(); ++inu1)
+        for (int inu2 = 0; inu2 < NuDmn::dmn_size(); ++inu2) {
+          for (int w = 0; w < WDmn::dmn_size(); ++w) {
+            const auto& w_val = WDmn::get_elements()[w];
+            Complex G_k_omega(0);
+            for (int t = 0; t < TDmn::dmn_size(); ++t) {
+              const auto& t_val = TDmn::get_elements()[t];
+              G_k_omega += disordered_G0_k_k_t_cl_exl(inu1, k1, inu2, k2, t) *
+                           std::exp(Complex(0, w_val * t_val));
+            }
+            disordered_G0_k_k_w_cl_exl(inu1, k1, inu2, k2, w) = G_k_omega;
           }
-          mutable_G0_k_w_cluster_excluded(inu1, inu2, k, w) = G_k_omega;
         }
-      }
+    }
   }
 }
 
 template <class Parameters, DistType DT>
 void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& disorder_configuration) {
-  makeDisorderedG0(disorder_configuration, G0_r_t_cluster_excluded, mutable_G0_r_t_cluster_excluded);
+  makeDisorderedG0(disorder_configuration, G0_r_t_cluster_excluded);
 }
 
 template <class Parameters, DistType DT>

@@ -73,6 +73,8 @@ public:
   using Walker = ctaux::CtauxWalker<device_t, Parameters, Data>;
   using Accumulator = ctaux::CtauxAccumulator<device_t, Parameters, Data, DIST>;
   using SpGreensFunction = typename Data::SpGreensFunction;
+  using SpDisorderedGreensFunction = typename Data::SpDisorderedGreensFunction;
+  using SpRDisorderedGreensFunction = typename Data::SpRDisorderedGreensFunction;
 
   static constexpr linalg::DeviceType device = device_t;
 
@@ -243,10 +245,31 @@ void CtauxClusterSolver<device_t, Parameters, Data, DIST>::write(Writer& writer)
 }
 
 template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
+void CtauxClusterSolver<device_t, Parameters, Data, DIST>::initialize(
+    int dca_iteration, SpRDisorderedGreensFunction& g0_disordered) {
+  dca_iteration_ = dca_iteration;
+
+  g0_.initialize(g0_disordered);
+
+  Sigma_old_ = data_.Sigma;
+
+  accumulator_.initialize(dca_iteration_);
+
+  averaged_ = false;
+  compute_jack_knife_ =
+      (dca_iteration == parameters_.get_dca_iterations() - 1) &&
+      (parameters_.get_error_computation_type() == ErrorComputationType::JACK_KNIFE);
+
+  if (concurrency_.id() == concurrency_.first())
+    std::cout << "\n\n\t CT-AUX Integrator has initialized (DCA-iteration : " << dca_iteration
+              << ")\n\n";
+}
+
+template <dca::linalg::DeviceType device_t, class Parameters, class Data, DistType DIST>
 void CtauxClusterSolver<device_t, Parameters, Data, DIST>::initialize(int dca_iteration) {
   dca_iteration_ = dca_iteration;
 
-  g0_.initializeShrinked(data_.mutable_G0_r_t_cluster_excluded);
+  g0_.initializeShrinked(data_.G0_r_t_cluster_excluded);
 
   Sigma_old_ = data_.Sigma;
 

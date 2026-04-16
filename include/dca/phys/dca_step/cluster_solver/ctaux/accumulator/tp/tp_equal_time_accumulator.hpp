@@ -339,7 +339,7 @@ void TpEqualTimeAccumulator<Parameters, Data>::initialize_akima_coefficients() {
       for (int nu1_ind = 0; nu1_ind < nu::dmn_size(); nu1_ind++) {
         for (int nu0_ind = 0; nu0_ind < nu::dmn_size(); nu0_ind++) {
           for (int t_ind = 0; t_ind < t::dmn_size() / 2; t_ind++)
-            y[t_ind] = MOMS.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
+            y[t_ind] = MOMS.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
 
           ai_obj.initialize(x, y);
 
@@ -357,7 +357,7 @@ void TpEqualTimeAccumulator<Parameters, Data>::initialize_akima_coefficients() {
         for (int nu0_ind = 0; nu0_ind < nu::dmn_size(); nu0_ind++) {
           for (int t_ind = t::dmn_size() / 2; t_ind < t::dmn_size(); t_ind++)
             y[t_ind - t::dmn_size() / 2] =
-                MOMS.mutable_G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
+                MOMS.G0_r_t_cluster_excluded(nu0_ind, nu1_ind, r_ind, t_ind);
 
           ai_obj.initialize(x, y);
 
