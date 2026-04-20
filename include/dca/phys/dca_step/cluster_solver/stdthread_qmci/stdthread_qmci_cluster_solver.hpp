@@ -59,6 +59,8 @@ public:
   using typename BaseClass::Accumulator;
   using Walker = stdthreadqmci::StdThreadQmciWalker<typename BaseClass::Walker, Data>;
   using SpGreensFunction = typename BaseClass::SpGreensFunction;
+  using SpDisorderedGreensFunction = typename BaseClass::SpDisorderedGreensFunction;
+  using SpRDisorderedGreensFunction = typename BaseClass::SpRDisorderedGreensFunction;
   using StdThreadAccumulatorType =
       stdthreadqmci::StdThreadQmciAccumulator<Accumulator, typename BaseClass::SpGreensFunction>;
   using MFunction = typename StdThreadAccumulatorType::MFunction;
@@ -75,6 +77,7 @@ public:
                              const std::shared_ptr<io::Writer<Concurrency>>& writer);
 
   void initialize(int dca_iteration);
+  void initialize(int dca_iteration, SpRDisorderedGreensFunction& g0_disordered);
 
   void integrate();
 
@@ -241,14 +244,15 @@ void StdThreadQmciClusterSolver<QmciSolver>::initialize(int dca_iteration) {
 }
 
 template <class QmciSolver>
-void StdThreadQmciClusterSolver<QmciSolver>::initialize(int dca_iteration, ) {
+void StdThreadQmciClusterSolver<QmciSolver>::initialize(int dca_iteration,
+                                                        SpRDisorderedGreensFunction& g0_disordered) {
   Profiler profiler(__FUNCTION__, "stdthread-MC-Integration", __LINE__);
 
   last_iteration_ = dca_iteration == parameters_.get_dca_iterations() - 1;
 
   measurements_ = parameters_.get_measurements()[dca_iteration];
 
-  BaseClass::initialize(dca_iteration);
+  BaseClass::initialize(dca_iteration, g0_disordered);
 
   walk_finished_ = 0;
   measurements_done_ = 0;

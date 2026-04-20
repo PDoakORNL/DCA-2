@@ -111,7 +111,7 @@ public:
   using SpRGreensFunction =
       func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, RClusterDmn, WDmn>>;
   using SpRDisorderedGreensFunction =
-      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, RClusterDmn NuDmn, RClusterDmn, WDmn>>;
+      func::function<std::complex<Real>, func::dmn_variadic<NuDmn, RClusterDmn, NuDmn, RClusterDmn, WDmn>>;
 
   using TpGreensFunction =
       func::function<TpComplex,
@@ -761,7 +761,7 @@ void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& diso
   int nu_r_matrix_dim = NuDmn::dmn_size() * RClusterDmn::dmn_size();
   dca::linalg::Matrix<Scalar, dca::linalg::CPU,
                       dca::linalg::util::DefaultAllocator<Scalar, dca::linalg::CPU>>
-      g0_dis_tcex_inverse(nu_r_matrix_dim);
+      g0_dis_tcex_inverse(nu_matrix_dim);
   // dca::linalg::Vector<int, dca::linalg::CPU,
   //                     dca::linalg::util::DefaultAllocator<std::complex<double>, dca::linalg::CPU>>
   //     ipiv;
@@ -785,20 +785,18 @@ void DcaData<Parameters, DT>::makeDisorderedG0(const DisorderConfiguration& diso
       for (int imd = 0; imd < nu_matrix_dim; ++imd) {
         g0_rtcex_inverse(imd, imd) += disorder_configuration(imd, ir);
       }
-
-      // then add the block to the big matrix.
-      for (int i = 0; i < nu_matrix_dim; ++i)
-        for (int j = 0; i < nu_matrix_dim; ++j)
-          g0_dis_tcex_inverse(nu_matrix_dim * ir + i, nu_matrix_dim * ir + j);
+      dca::linalg::matrixop::inverse(g0_rtcex_inverse);
+      for (int imd = 0; imd < nu_matrix_dim; ++imd) {
+        disordered_G0_r_r_t_cl_exl(imd, ir, imd, ir, it) = g0_rtcex_inverse(imd, imd);
+      }
     }
-    dca::linalg::matrixop::inverse(g0_dis_tcex_inverse);
-    dca::linalg::matrixop::copyMatrixToArray(
-        g0_dis_tcex_inverse, &disordered_G0_r_r_t_cl_exl(0, 0, 0, 0, it), nu_r_matrix_dim);
   }
 
-  // Giving up at this point in side effect free method.
   math::transform::FunctionTransform<RClusterDmn, KClusterDmn>::execute(disordered_G0_r_r_t_cl_exl,
                                                                         disordered_G0_k_k_t_cl_exl);
+  // At this point I beleive the matrix is nondiagonal in k
+
+  // disordered_G0_k_k_t_cl_exl.print_elements(std::cout);
 
   // I can't figure out how to get this to work with the
   // math::transform::FunctionTransform framwork so do this by hand

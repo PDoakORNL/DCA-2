@@ -104,6 +104,7 @@ public:
   void write(Writer& writer);
 
   void initialize(int dca_iteration);
+  void initialize(int dca_iteration, SpRDisorderedGreensFunction& g0_disordered);
 
   void integrate();
 
@@ -147,6 +148,7 @@ private:
   void collect_measurements();
 
   void compute_G_k_w_from_M_r_w();
+  // Now this needs to have k1, k2
   void accumulateGkwFromMrw(
       func::function<std::complex<Real>, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G_k_w,
       double weight);
