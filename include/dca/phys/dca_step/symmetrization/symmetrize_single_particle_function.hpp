@@ -9,7 +9,7 @@
 //         Peter Staar (taa@zurich.ibm.com)
 //
 // This class symmetrizes single-particle Greens functions according to cluster symmetries,
-// matsubara frequencies and band-index symmetries.
+// Matsubara/imaginary-time symmetries, and band-index symmetries.
 
 /*
  *  \section tau imaginary-time domain
@@ -20,9 +20,14 @@
  *
  *  \section omega matsubara-frequency domain
  *
+ *   For matrix-valued Green's functions, Hermiticity relates opposite Matsubara frequencies and
+ *   cluster points:
+ *
  *   \f{eqnarray*}{
- *     G(\varpi) &=& \overline{G(-\varpi)}
+ *     G_{ab}(-\vec{x},-\varpi) &=& \overline{G_{ba}(\vec{x},\varpi)}
  *   \f}
+ *
+ *   where \f$\vec{x}\f$ denotes either a cluster momentum or a cluster displacement.
  *
  *  \section r_and_k cluster domain
  *
@@ -169,6 +174,21 @@ public:
   }
 
 private:
+  template <typename T>
+  static T conjugate(const T& value) {
+    return value;
+  }
+
+  template <typename T>
+  static std::complex<T> conjugate(const std::complex<T>& value) {
+    return std::conj(value);
+  }
+
+  template <typename Scalar>
+  static Scalar hermitianAverage(const Scalar& lhs, const Scalar& rhs) {
+    return (lhs + conjugate(rhs)) / 2.;
+  }
+
   template <typename Scalar>
   static void difference(Scalar val, std::string function_name, std::string dmn_name);
 
@@ -508,12 +528,12 @@ void SymmetrizeSingleParticleFunction<Parameters>::execute(func::function<Scalar
                                                            bool do_diff) {
   double max = 0;
   for (int i = 0; i < WDmn::dmn_size() / 2; i++) {
-    max = std::max(max, abs((f(i) - std::conj(f(WDmn::dmn_size() - i - 1))) / 2.));
+    max = std::max(max, abs((f(i) - conjugate(f(WDmn::dmn_size() - i - 1))) / 2.));
 
-    Scalar tmp = (f(i) + std::conj(f(WDmn::dmn_size() - i - 1))) / 2.;
+    const Scalar tmp = hermitianAverage(f(i), f(WDmn::dmn_size() - i - 1));
 
     f(i) = tmp;
-    f(WDmn::dmn_size() - 1 - i) = std::conj(tmp);
+    f(WDmn::dmn_size() - 1 - i) = conjugate(tmp);
   }
 
   if (do_diff)
@@ -525,69 +545,22 @@ template <typename Scalar, typename ClusterDomain>
 void SymmetrizeSingleParticleFunction<Parameters>::executeTimeOrFreq(
     func::function<Scalar, func::dmn_variadic<BDmn, BDmn, ClusterDomain, WDmn>>& f, bool do_diff) {
   func::function<Scalar, func::dmn_variadic<BDmn, BDmn, ClusterDomain, WDmn>> f_new;
+  f_new = Scalar(0);
 
-  int w_0 = WDmn::dmn_size() - 1;
+  const int w_0 = WDmn::dmn_size() - 1;
   constexpr auto representation = ClusterDomain::parameter_type::REPRESENTATION;
 
   for (int w_ind = 0; w_ind < WDmn::dmn_size() / 2; ++w_ind) {
     for (int c_ind = 0; c_ind < ClusterDomain::dmn_size(); ++c_ind) {
-      const int new_c_idx =
-        oppositeSite<ClusterDomain>(c_ind);
+      const int opposite_c_idx = oppositeSite<ClusterDomain>(c_ind);
 
       for (int b0 = 0; b0 < BDmn::dmn_size(); ++b0) {
         for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1) {
-          constexpr bool real_hamiltonian = !Parameters::complex_g0;
-          if constexpr (real_hamiltonian) {
-              const auto tmp0 = f(b0, b1, c_ind, w_ind);
-              const auto tmp1 = f(b0, b1, new_c_idx, w_ind);
-              const auto tmp2 = f(b0, b1, c_ind, w_0 - w_ind);
-              const auto tmp3 = f(b0, b1, new_c_idx, w_0 - w_ind);
-              const auto tmp4 = f(b1, b0, c_ind, w_ind);
-              const auto tmp5 = f(b1, b0, new_c_idx, w_ind);
-              const auto tmp6 = f(b1, b0, c_ind, w_0 - w_ind);
-              const auto tmp7 = f(b1, b0, new_c_idx, w_0 - w_ind);
-              if (representation == domains::MOMENTUM_SPACE) {
-                  if ((b0 == 0 && b1 != b0)||(b1 == 0 && b1 != b0)) {
-                      
-                      const auto tmp = (tmp0 + tmp1 - std::conj(tmp2) - std::conj(tmp3) - (tmp4 + tmp5 - std::conj(tmp6) - std::conj(tmp7))) / 8.;
-                      
-                      f_new(b0, b1, c_ind, w_ind) = tmp;
-                      f_new(b0, b1, new_c_idx, w_ind) = tmp;
-                      f_new(b0, b1, c_ind, w_0 - w_ind) = - 1.0 *std::conj(tmp);
-                      f_new(b0, b1, new_c_idx, w_0 - w_ind) = - 1.0 * std::conj(tmp);
-                      f_new(b1, b0, c_ind, w_ind) = - 1.0 * tmp;
-                      f_new(b1, b0, new_c_idx, w_ind) = - 1.0 * tmp;
-                      f_new(b1, b0, c_ind, w_0 - w_ind) = std::conj(tmp);
-                      f_new(b1, b0, new_c_idx, w_0 - w_ind) =  std::conj(tmp);
-                  }
-                  else {
-                      const auto tmp = (tmp0 + tmp1 + std::conj(tmp2) + std::conj(tmp3) + (tmp4 + tmp5 + std::conj(tmp6) + std::conj(tmp7))) / 8.;
-                      f_new(b0, b1, c_ind, w_ind) = tmp;
-                      f_new(b0, b1, new_c_idx, w_ind) = tmp;
-                      f_new(b0, b1, c_ind, w_0 - w_ind) = std::conj(tmp);
-                      f_new(b0, b1, new_c_idx, w_0 - w_ind) = std::conj(tmp);
-                      f_new(b1, b0, c_ind, w_ind) = tmp;
-                      f_new(b1, b0, new_c_idx, w_ind) = tmp;
-                      f_new(b1, b0, c_ind, w_0 - w_ind) = std::conj(tmp);
-                      f_new(b1, b0, new_c_idx, w_0 - w_ind) = std::conj(tmp);
-                  }
-              }
-              else if (representation == domains::REAL_SPACE) {
-                  const auto tmp = (tmp0 + std::conj(tmp7)) / 2.;
-                  f_new(b0, b1, c_ind, w_ind) = tmp;
-                  f_new(b1, b0, new_c_idx, w_0 - w_ind) = std::conj(tmp);
-              }
-          }
-          else {  // Hamiltonian is complex.
-              // std::cout << "Symmetrizing complex Hamiltonian \n";
-              const auto tmp1 = f(b0, b1, c_ind, w_ind);
-              const auto tmp2 = f(b1, b0, new_c_idx, w_0 - w_ind);  // F(w) = conj(F^t(-w))
+          const auto tmp =
+              hermitianAverage(f(b0, b1, c_ind, w_ind), f(b1, b0, opposite_c_idx, w_0 - w_ind));
 
-              const auto tmp = (tmp1 + std::conj(tmp2)) / 2.;
-
-              f_new(b0, b1, c_ind, w_ind) = tmp;
-              f_new(b1, b0, new_c_idx, w_0 - w_ind) = std::conj(tmp);
-          }
+          f_new(b0, b1, c_ind, w_ind) = tmp;
+          f_new(b1, b0, opposite_c_idx, w_0 - w_ind) = conjugate(tmp);
         }
       }
 
@@ -622,12 +595,12 @@ void SymmetrizeSingleParticleFunction<Parameters>::execute(func::function<Scalar
                                                            bool do_diff) {
   double max = 0;
   for (int i = 0; i < WVertexDmn::dmn_size() / 2; i++) {
-    max = std::max(max, abs((f(i) - std::conj(f(WVertexDmn::dmn_size() - i - 1))) / 2.));
+    max = std::max(max, abs((f(i) - conjugate(f(WVertexDmn::dmn_size() - i - 1))) / 2.));
 
-    Scalar tmp = (f(i) + std::conj(f(WVertexDmn::dmn_size() - i - 1))) / 2.;
+    const Scalar tmp = hermitianAverage(f(i), f(WVertexDmn::dmn_size() - i - 1));
 
     f(i) = tmp;
-    f(WVertexDmn::dmn_size() - i - 1) = std::conj(tmp);
+    f(WVertexDmn::dmn_size() - i - 1) = conjugate(tmp);
   }
 
   if (do_diff)
@@ -640,12 +613,12 @@ void SymmetrizeSingleParticleFunction<Parameters>::execute(func::function<Scalar
                                                            bool do_diff) {
   double max = 0;
   for (int i = 0; i < WVertexExtDmn::dmn_size() / 2; i++) {
-    max = std::max(max, abs((f(i) - std::conj(f(WVertexExtDmn::dmn_size() - i - 1))) / 2.));
+    max = std::max(max, abs((f(i) - conjugate(f(WVertexExtDmn::dmn_size() - i - 1))) / 2.));
 
-    Scalar tmp = (f(i) + std::conj(f(WVertexExtDmn::dmn_size() - i - 1))) / 2.;
+    const Scalar tmp = hermitianAverage(f(i), f(WVertexExtDmn::dmn_size() - i - 1));
 
     f(i) = tmp;
-    f(WVertexExtDmn::dmn_size() - i - 1) = std::conj(tmp);
+    f(WVertexExtDmn::dmn_size() - i - 1) = conjugate(tmp);
   }
 
   if (do_diff)
