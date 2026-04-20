@@ -650,7 +650,6 @@ __global__ void updateG4Kernel(GPUComplex<RealAlias<Scalar>>* __restrict__ G4,
       g4_helper.extendGIndicesMultiBand(k1_a, k2_a, w1_a, w2_a);
     int i_a = nb * k1_a + no * w1_a + b1;
     int j_a = nb * k2_a + no * w2_a + b3;
-
     const GPUComplex<RealAlias<Scalar>> Ga_1 = G_up[i_a + ldgu * j_a];
     const GPUComplex<RealAlias<Scalar>> Ga_2 = G_down[i_a + ldgd * j_a];
 
@@ -664,11 +663,13 @@ __global__ void updateG4Kernel(GPUComplex<RealAlias<Scalar>>* __restrict__ G4,
     else
       g4_helper.extendGIndicesMultiBand(k1_b, k2_b, w1_b, w2_b);
 
-    int i_b = nb * k1_b + no * w1_b + b2;
-    int j_b = nb * k2_b + no * w2_b + b4;
+    // The PP minus leg is the Hermitian-conjugated orbital block, so the band
+    // indices are transposed before taking the complex conjugate.
+    int i_b = nb * k1_b + no * w1_b + b4;
+    int j_b = nb * k2_b + no * w2_b + b2;
 
-    const GPUComplex<RealAlias<Scalar>> Gb_1 = G_down[i_b + ldgd * j_b];
-    const GPUComplex<RealAlias<Scalar>> Gb_2 = G_up[i_b + ldgu * j_b];
+    const GPUComplex<RealAlias<Scalar>> Gb_1 = conj(G_down[i_b + ldgd * j_b]);
+    const GPUComplex<RealAlias<Scalar>> Gb_2 = conj(G_up[i_b + ldgu * j_b]);
 
     contribution = sign_over_2 * (Ga_1 * Gb_1 + Ga_2 * Gb_2);
   }
@@ -791,11 +792,11 @@ __global__ void updateG4KernelNoSpin(GPUComplex<RealAlias<Scalar>>* __restrict__
       int i_a = nb * k1_a + no * w1_a + b1;
       int j_a = nb * k2_a + no * w2_a + b3;
 
-      int i_b = nb * k1_b + no * w1_b + b2;
-      int j_b = nb * k2_b + no * w2_b + b4;
+      int i_b = nb * k1_b + no * w1_b + b4;
+      int j_b = nb * k2_b + no * w2_b + b2;
 
       const GPUComplex<RealAlias<Scalar>> Ga_1 = G_dn[i_a + ldgd * j_a];
-      const GPUComplex<RealAlias<Scalar>> Gb_1 = G_dn[i_b + ldgd * j_b];
+      const GPUComplex<RealAlias<Scalar>> Gb_1 = conj(G_dn[i_b + ldgd * j_b]);
 
       contribution = complex_factor * (Ga_1 * Gb_1);
     }
@@ -815,11 +816,11 @@ __global__ void updateG4KernelNoSpin(GPUComplex<RealAlias<Scalar>>* __restrict__
       int i_a = nb * k1_a + no * w1_a + b1;
       int j_a = nb * k2_a + no * w2_a + b4;
 
-      int i_b = nb * k1_b + no * w1_b + b2;
-      int j_b = nb * k2_b + no * w2_b + b3;
+      int i_b = nb * k1_b + no * w1_b + b3;
+      int j_b = nb * k2_b + no * w2_b + b2;
 
       const GPUComplex<RealAlias<Scalar>> Ga_1 = G_dn[i_a + ldgd * j_a];
-      const GPUComplex<RealAlias<Scalar>> Gb_1 = G_dn[i_b + ldgd * j_b];
+      const GPUComplex<RealAlias<Scalar>> Gb_1 = conj(G_dn[i_b + ldgd * j_b]);
 
       contribution -= complex_factor * (Ga_1 * Gb_1);
     }
