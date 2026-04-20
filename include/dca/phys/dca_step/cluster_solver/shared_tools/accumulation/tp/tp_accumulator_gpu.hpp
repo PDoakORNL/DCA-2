@@ -417,6 +417,14 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t ch
   //  TODO: set stream only if this thread gets exclusive access to G4.
   //  get_G4().setStream(queues_[0]);
   const FourPointType channel = Base::channels_[channel_index];
+  if (channel == FourPointType::PARTICLE_PARTICLE_UP_DOWN && n_bands_ > 1) {
+    const auto origin = KDmn::parameter_type::origin_index();
+    for (const int k_ex : domains::MomentumExchangeDomain::get_elements()) {
+      if (k_ex != origin)
+        throw std::logic_error(
+            "Finite-Q multiband PP direct-construction is implemented only in the CPU accumulator.");
+    }
+  }
 
   uint64_t start = Base::G4_[0].get_start();
   uint64_t end =
