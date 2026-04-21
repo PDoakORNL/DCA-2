@@ -20,14 +20,20 @@
  *
  *  \section omega matsubara-frequency domain
  *
- *   For matrix-valued Green's functions, Hermiticity relates opposite Matsubara frequencies and
- *   cluster points:
+ *   For matrix-valued Green's functions in the k-domain, Hermiticity acts at fixed cluster
+ *   momentum:
  *
  *   \f{eqnarray*}{
- *     G_{ab}(-\vec{x},-\varpi) &=& \overline{G_{ba}(\vec{x},\varpi)}
+ *     G_{ab}(\vec{k},\tau) &=& \overline{G_{ba}(\vec{k},\tau)} \\
+ *     G_{ab}(\vec{k},-\varpi) &=& \overline{G_{ba}(\vec{k},\varpi)}
  *   \f}
  *
- *   where \f$\vec{x}\f$ denotes either a cluster momentum or a cluster displacement.
+ *   In the r-domain, the corresponding relations are
+ *
+ *   \f{eqnarray*}{
+ *     G_{ab}(\vec{r},\tau) &=& G_{ba}(-\vec{r},\tau) \\
+ *     G_{ab}(\vec{r},-\varpi) &=& \overline{G_{ba}(-\vec{r},\varpi)}
+ *   \f}
  *
  *  \section r_and_k cluster domain
  *
@@ -518,6 +524,66 @@ void SymmetrizeSingleParticleFunction<Parameters>::executeTimeOrFreq(
 
   f = std::move(f_new);
 
+  if constexpr (ClusterDmn::parameter_type::REPRESENTATION ==
+                domains::CLUSTER_REPRESENTATION::MOMENTUM_SPACE) {
+    func::function<Scalar, func::dmn_variadic<BDmn, BDmn, ClusterDmn, TDmn>> f_herm(f.get_name());
+    f_herm = Scalar(0);
+
+    double hermitian_max = 0;
+    for (int t_ind = 0; t_ind < TDmn::dmn_size(); ++t_ind) {
+      for (int c_ind = 0; c_ind < ClusterDmn::dmn_size(); ++c_ind) {
+        for (int b0 = 0; b0 < BDmn::dmn_size(); ++b0) {
+          for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1) {
+            const auto tmp = hermitianAverage(f(b0, b1, c_ind, t_ind), f(b1, b0, c_ind, t_ind));
+            f_herm(b0, b1, c_ind, t_ind) = tmp;
+            f_herm(b1, b0, c_ind, t_ind) = conjugate(tmp);
+
+            hermitian_max =
+                std::max(hermitian_max, std::abs(f(b0, b1, c_ind, t_ind) - f_herm(b0, b1, c_ind, t_ind)));
+            hermitian_max =
+                std::max(hermitian_max, std::abs(f(b1, b0, c_ind, t_ind) - f_herm(b1, b0, c_ind, t_ind)));
+          }
+        }
+      }
+    }
+
+    f = std::move(f_herm);
+
+    if (do_diff)
+      difference(hermitian_max, f.get_name(),
+                 "TDmn-domain fixed-k Hermiticity of the function : " + f.get_name() + "\n");
+  }
+  else if constexpr (ClusterDmn::parameter_type::REPRESENTATION ==
+                     domains::CLUSTER_REPRESENTATION::REAL_SPACE) {
+    func::function<Scalar, func::dmn_variadic<BDmn, BDmn, ClusterDmn, TDmn>> f_real(f.get_name());
+    f_real = Scalar(0);
+
+    double r_symmetry_max = 0;
+    for (int t_ind = 0; t_ind < TDmn::dmn_size(); ++t_ind) {
+      for (int c_ind = 0; c_ind < ClusterDmn::dmn_size(); ++c_ind) {
+        const int opposite_c_idx = oppositeSite<ClusterDmn>(c_ind);
+        for (int b0 = 0; b0 < BDmn::dmn_size(); ++b0) {
+          for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1) {
+            const auto tmp = (f(b0, b1, c_ind, t_ind) + f(b1, b0, opposite_c_idx, t_ind)) / 2.;
+            f_real(b0, b1, c_ind, t_ind) = tmp;
+            f_real(b1, b0, opposite_c_idx, t_ind) = tmp;
+
+            r_symmetry_max =
+                std::max(r_symmetry_max, std::abs(f(b0, b1, c_ind, t_ind) - f_real(b0, b1, c_ind, t_ind)));
+            r_symmetry_max = std::max(
+                r_symmetry_max, std::abs(f(b1, b0, opposite_c_idx, t_ind) - f_real(b1, b0, opposite_c_idx, t_ind)));
+          }
+        }
+      }
+    }
+
+    f = std::move(f_real);
+
+    if (do_diff)
+      difference(r_symmetry_max, f.get_name(),
+                 "TDmn-domain r to -r transpose symmetry of the function : " + f.get_name() + "\n");
+  }
+
   if (do_diff)
     difference(max, f.get_name(), "TDmn-domain of the function : " + f.get_name() + "\n");
 }
@@ -552,7 +618,9 @@ void SymmetrizeSingleParticleFunction<Parameters>::executeTimeOrFreq(
 
   for (int w_ind = 0; w_ind < WDmn::dmn_size() / 2; ++w_ind) {
     for (int c_ind = 0; c_ind < ClusterDomain::dmn_size(); ++c_ind) {
-      const int opposite_c_idx = oppositeSite<ClusterDomain>(c_ind);
+      const int opposite_c_idx =
+          representation == domains::CLUSTER_REPRESENTATION::MOMENTUM_SPACE ? c_ind
+                                                                             : oppositeSite<ClusterDomain>(c_ind);
 
       for (int b0 = 0; b0 < BDmn::dmn_size(); ++b0) {
         for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1) {
