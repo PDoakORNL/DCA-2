@@ -663,10 +663,10 @@ __global__ void updateG4Kernel(GPUComplex<RealAlias<Scalar>>* __restrict__ G4,
     else
       g4_helper.extendGIndicesMultiBand(k1_b, k2_b, w1_b, w2_b);
 
-    // The PP minus leg is the Hermitian-conjugated orbital block, so the band
-    // indices are transposed before taking the complex conjugate.
-    int i_b = nb * k1_b + no * w1_b + b4;
-    int j_b = nb * k2_b + no * w2_b + b2;
+    // For the Q=0 Thomas-code convention, keep the external band placement and
+    // only take the complex conjugate of the minus leg.
+    int i_b = nb * k1_b + no * w1_b + b2;
+    int j_b = nb * k2_b + no * w2_b + b4;
 
     const GPUComplex<RealAlias<Scalar>> Gb_1 = conj(G_down[i_b + ldgd * j_b]);
     const GPUComplex<RealAlias<Scalar>> Gb_2 = conj(G_up[i_b + ldgu * j_b]);
@@ -792,8 +792,8 @@ __global__ void updateG4KernelNoSpin(GPUComplex<RealAlias<Scalar>>* __restrict__
       int i_a = nb * k1_a + no * w1_a + b1;
       int j_a = nb * k2_a + no * w2_a + b3;
 
-      int i_b = nb * k1_b + no * w1_b + b4;
-      int j_b = nb * k2_b + no * w2_b + b2;
+      int i_b = nb * k1_b + no * w1_b + b2;
+      int j_b = nb * k2_b + no * w2_b + b4;
 
       const GPUComplex<RealAlias<Scalar>> Ga_1 = G_dn[i_a + ldgd * j_a];
       const GPUComplex<RealAlias<Scalar>> Gb_1 = conj(G_dn[i_b + ldgd * j_b]);
