@@ -97,7 +97,6 @@ protected:
   using BaseGpu::space_trsf_objs_;
   using BaseGpu::nr_accumulators_;
   using BaseGpu::event_;
-  using typename BaseGpu::RMatrix;
   using typename BaseGpu::RMatrixValueType;
 
 public:
@@ -684,7 +683,6 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4FiniteQMultibandPP(
   const auto& exchange_frq = domains::FrequencyExchangeDomain::get_elements();
   const auto& exchange_mom = domains::MomentumExchangeDomain::get_elements();
 
-  auto q_minus_k = [](const int k, const int q) { return KDmn::parameter_type::subtract(k, q); };
   auto w_ex_minus_w = [](const int w, const int w_ex) { return w_ex + WTpDmn::dmn_size() - 1 - w; };
 
   if constexpr (Base::spin_symmetric_) {
