@@ -52,10 +52,6 @@ double updateG4NoSpin(Scalar* G4, const Scalar* G_up, const int ldgu, const Sign
                bool atomic, cudaStream_t stream, std::size_t start,
                std::size_t end);
 
-template <typename Scalar>
-void accumulateG4Device(Scalar* G4, const Scalar* delta, std::size_t size, bool atomic,
-                        cudaStream_t stream);
-
 }  // namespace details
 }  // namespace accumulator
 }  // namespace solver

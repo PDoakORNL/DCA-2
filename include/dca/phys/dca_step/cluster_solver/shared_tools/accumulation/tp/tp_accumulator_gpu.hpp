@@ -22,26 +22,21 @@
 #error "This file requires GPU."
 #endif
 
-#include <algorithm>
 #include <mutex>
 #include <vector>
 
 // its expected that dca::config::McOptions will be provided in some manner before parameters.hpp is
 // included
 #include "dca/distribution/dist_types.hpp"
-#include "dca/linalg/blas/use_device.hpp"
 #include "dca/linalg/lapack/magma.hpp"
 #include "dca/linalg/reshapable_matrix.hpp"
 #include "dca/linalg/util/allocators/managed_allocator.hpp"
 #include "dca/linalg/util/gpu_event.hpp"
 #include "dca/linalg/util/magma_queue.hpp"
-#include "dca/math/util/vector_operations.hpp"
 #include "dca/math/function_transform/special_transforms/space_transform_2D_gpu.hpp"
 #include "dca/parallel/util/call_once_per_loop.hpp"
 #include "dca/parallel/util/get_workload.hpp"
-#include "dca/phys/domains/cluster/cluster_operations.hpp"
 #include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/tp/kernels_interface.hpp"
-#include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/tp/ndft/cached_ndft_cpu.hpp"
 #include "dca/phys/dca_step/cluster_solver/shared_tools/accumulation/tp/ndft/cached_ndft_gpu.hpp"
 #include "dca/util/integer_division.hpp"
 
@@ -97,6 +92,7 @@ protected:
   using BaseGpu::space_trsf_objs_;
   using BaseGpu::nr_accumulators_;
   using BaseGpu::event_;
+  using typename BaseGpu::RMatrix;
   using typename BaseGpu::RMatrixValueType;
 
 public:
@@ -193,12 +189,10 @@ public:
 protected:
   using typename BaseGpu::Matrix;
   using typename BaseGpu::MatrixHost;
-  using typename BaseGpu::RMatrix;
   using Base::beta_;
   using Base::channels_;
   using Base::extension_index_offset_;
   using Base::G4_;
-  using Base::G0_;
   using Base::multiple_accumulators_;
   using Base::n_bands_;
 
@@ -223,15 +217,8 @@ protected:
 
   void computeGSingleband(int s);
 
-  template <class Configuration, typename SpScalar>
-  void prepareMultibandPPData(const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M,
-                              const std::array<Configuration, 2>& configs);
-
   template <typename SignType>
   double updateG4(const std::size_t channel_index, SignType factor);
-
-  template <typename SignType>
-  double updateG4MultibandPP(const std::size_t channel_index, SignType factor);
 
   void synchronizeStreams();
 #ifdef DCA_HAVE_MPI
@@ -273,56 +260,13 @@ protected:
   std::array<std::vector<TpComplex>, 2> sendbuffer_;
   std::array<std::vector<TpComplex>, 2> recvbuffer_;
 #endif  // DCA_HAVE_GPU_AWARE_MPI
-
-private:
-  using BandBlockView = linalg::MatrixView<TpComplex, linalg::CPU>;
-  using RealSpaceSpGreensFunction =
-      func::function<TpComplex,
-                     func::dmn_variadic<RDmn, RDmn, BDmn, BDmn, SDmn, WTpExtPosDmn, WTpExtDmn>>;
-  using HostNdftType =
-      CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtPosDmn, linalg::CPU,
-                 Base::non_density_density_>;
-
-  bool needsMultibandPPDirectConstruction() const;
-  void getGMultibandHost(int s, int k1, int k2, int w1, int w2, MatrixHost& G,
-                         TpComplex sign = 0) const;
-  void getGMultibandDirectHost(int s, const std::vector<double>& k1_vec,
-                               const std::vector<double>& k2_vec, int w1, int w2, MatrixHost& G,
-                               TpComplex sign = 0) const;
-  void buildMomentumBlockFromRealSpaceHost(int s, const std::vector<double>& k1_vec,
-                                           const std::vector<double>& k2_vec, int w1, int w2,
-                                           MatrixHost& M_k) const;
-  void buildUnfoldedG0BlockHost(int s, const std::vector<double>& k_vec, int w,
-                                MatrixHost& G0_k) const;
-  static void matrixOperationsGMultibandHost(const BandBlockView& G0_kw1,
-                                             const BandBlockView& G0_kw2, BandBlockView& G_kkww,
-                                             MatrixHost& G0_M);
-
-  mutable HostNdftType ndft_host_;
-  mutable MatrixHost G0_M_host_;
-  mutable MatrixHost G_a_host_;
-  mutable MatrixHost G_b_host_;
-  mutable MatrixHost G0_a_host_;
-  mutable MatrixHost G0_b_host_;
-  mutable MatrixHost M_unfolded_host_;
-  mutable std::array<linalg::ReshapableMatrix<TpComplex, linalg::CPU>, 2> G_host_;
-  mutable RealSpaceSpGreensFunction M_r_r_w_w_host_;
 };
 
 template <class Parameters, DistType DT>
 TpAccumulator<Parameters, DT, linalg::GPU>::TpAccumulator(
     const func::function<TpComplex, func::dmn_variadic<NuDmn, NuDmn, KDmn, WDmn>>& G0,
     const Parameters& pars, const int thread_id)
-    : Base(G0, pars, thread_id),
-      BaseGpu(G0, pars, WTpExtDmn::dmn_size(), thread_id),
-      ndft_host_(),
-      G0_M_host_(n_bands_),
-      G_a_host_(n_bands_),
-      G_b_host_(n_bands_),
-      G0_a_host_(n_bands_),
-      G0_b_host_(n_bands_),
-      M_unfolded_host_(n_bands_),
-      M_r_r_w_w_host_("tp_acc_gpu::M_r_r_w_w_host_") {}
+    : Base(G0, pars, thread_id), BaseGpu(G0, pars, WTpExtDmn::dmn_size(), thread_id) {}
 
 template <class Parameters, DistType DT>
 void TpAccumulator<Parameters, DT, linalg::GPU>::resetAccumulation(const unsigned int dca_loop,
@@ -393,9 +337,6 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::accumulate(
 
   computeG();
 
-  if (needsMultibandPPDirectConstruction())
-    prepareMultibandPPData(M, configs);
-
 #ifndef NDEBUG
   G_debug_[0] = G_[0];
   G_debug_[1] = G_[1];
@@ -463,139 +404,6 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::computeGMultiband(const int s) 
 }
 
 template <class Parameters, DistType DT>
-bool TpAccumulator<Parameters, DT, linalg::GPU>::needsMultibandPPDirectConstruction() const {
-  if (n_bands_ <= 1)
-    return false;
-
-  const bool has_pp_channel =
-      std::find(channels_.begin(), channels_.end(), FourPointType::PARTICLE_PARTICLE_UP_DOWN) !=
-      channels_.end();
-  return has_pp_channel;
-}
-
-template <class Parameters, DistType DT>
-template <class Configuration, typename SpScalar>
-void TpAccumulator<Parameters, DT, linalg::GPU>::prepareMultibandPPData(
-    const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M,
-    const std::array<Configuration, 2>& configs) {
-  M_r_r_w_w_host_ = TpComplex(0., 0.);
-
-  std::array<linalg::Matrix<SpScalar, linalg::CPU>, 2> M_host;
-  for (int s = 0; s < 2; ++s) {
-    G_host_[s] = G_[s];
-    M_host[s].set(M[s], queues_[0].getStream());
-    ndft_host_.execute(configs[s], M_host[s], M_r_r_w_w_host_, s);
-  }
-}
-
-template <class Parameters, DistType DT>
-void TpAccumulator<Parameters, DT, linalg::GPU>::matrixOperationsGMultibandHost(
-    const BandBlockView& G0_kw1, const BandBlockView& G0_kw2, BandBlockView& G_kkww,
-    MatrixHost& G0_M) {
-  G0_M.resize(G0_kw1.size());
-  linalg::matrixop::gemm(G0_kw1, G_kkww, G0_M);
-  linalg::matrixop::gemm(TpComplex(-1), G0_M, G0_kw2, TpComplex(0), G_kkww);
-}
-
-template <class Parameters, DistType DT>
-void TpAccumulator<Parameters, DT, linalg::GPU>::getGMultibandHost(const int s, const int k1,
-                                                                   const int k2, const int w1,
-                                                                   const int w2, MatrixHost& G,
-                                                                   const TpComplex sign) const {
-  const int w1_ext = w1 + extension_index_offset_;
-  const int w2_ext = w2 + extension_index_offset_;
-  const int no = n_bands_ * KDmn::dmn_size();
-  const int row = n_bands_ * k1 + no * w1_ext;
-  const int col = n_bands_ * k2 + no * w2_ext;
-  const auto* const G_ptr = G_host_[s].ptr(row, col);
-
-  for (int b2 = 0; b2 < n_bands_; ++b2)
-    for (int b1 = 0; b1 < n_bands_; ++b1)
-      G(b1, b2) = sign * G(b1, b2) + G_ptr[b1 + b2 * n_bands_];
-}
-
-template <class Parameters, DistType DT>
-void TpAccumulator<Parameters, DT, linalg::GPU>::buildMomentumBlockFromRealSpaceHost(
-    const int s, const std::vector<double>& k1_vec, const std::vector<double>& k2_vec, const int w1,
-    const int w2, MatrixHost& M_k) const {
-  using dca::math::util::innerProduct;
-
-  const int w1_ext = w1 + extension_index_offset_;
-  const int w2_ext = w2 + extension_index_offset_;
-  const TpComplex norm = TpComplex(1. / RDmn::dmn_size(), 0.);
-  const auto& band_elements = BDmn::get_elements();
-  const auto& r_elements = RDmn::parameter_type::get_elements();
-
-  for (int b2 = 0; b2 < n_bands_; ++b2) {
-    for (int b1 = 0; b1 < n_bands_; ++b1) {
-      TpComplex value{0., 0.};
-      const auto& a1 = band_elements[b1].a_vec;
-      const auto& a2 = band_elements[b2].a_vec;
-      const TpComplex phase_band_1 = std::exp(TpComplex(0., innerProduct(k1_vec, a1)));
-      const TpComplex phase_band_2 = std::exp(TpComplex(0., -innerProduct(k2_vec, a2)));
-
-      for (int r2 = 0; r2 < RDmn::dmn_size(); ++r2) {
-        const TpComplex phase_r2 = std::exp(TpComplex(0., -innerProduct(k2_vec, r_elements[r2])));
-        for (int r1 = 0; r1 < RDmn::dmn_size(); ++r1) {
-          const TpComplex phase_r1 = std::exp(TpComplex(0., innerProduct(k1_vec, r_elements[r1])));
-          value += phase_r1 * phase_r2 * M_r_r_w_w_host_(r1, r2, b1, b2, s, w1_ext, w2_ext);
-        }
-      }
-
-      M_k(b1, b2) = norm * phase_band_1 * phase_band_2 * value;
-    }
-  }
-}
-
-template <class Parameters, DistType DT>
-void TpAccumulator<Parameters, DT, linalg::GPU>::buildUnfoldedG0BlockHost(
-    const int s, const std::vector<double>& k_vec, const int w, MatrixHost& G0_k) const {
-  using dca::math::util::innerProduct;
-
-  auto folded_k = domains::cluster_operations::translate_inside_cluster(
-      k_vec, KDmn::parameter_type::get_super_basis_vectors());
-  const int k_idx = domains::cluster_operations::index(
-      folded_k, KDmn::parameter_type::get_elements(), KDmn::parameter_type::SHAPE);
-
-  std::vector<double> reciprocal_shift(k_vec.size(), 0.);
-  for (int d = 0; d < int(k_vec.size()); ++d)
-    reciprocal_shift[d] = k_vec[d] - folded_k[d];
-
-  const int w_ext = w + extension_index_offset_;
-  const auto& band_elements = BDmn::get_elements();
-  for (int b2 = 0; b2 < n_bands_; ++b2) {
-    for (int b1 = 0; b1 < n_bands_; ++b1) {
-      const TpComplex left_phase =
-          std::exp(TpComplex(0., innerProduct(reciprocal_shift, band_elements[b1].a_vec)));
-      const TpComplex right_phase =
-          std::exp(TpComplex(0., -innerProduct(reciprocal_shift, band_elements[b2].a_vec)));
-      G0_k(b1, b2) = left_phase * G0_(b1, b2, s, k_idx, w_ext) * right_phase;
-    }
-  }
-}
-
-template <class Parameters, DistType DT>
-void TpAccumulator<Parameters, DT, linalg::GPU>::getGMultibandDirectHost(
-    const int s, const std::vector<double>& k1_vec, const std::vector<double>& k2_vec, const int w1,
-    const int w2, MatrixHost& G, const TpComplex sign) const {
-  buildMomentumBlockFromRealSpaceHost(s, k1_vec, k2_vec, w1, w2, M_unfolded_host_);
-  buildUnfoldedG0BlockHost(s, k1_vec, w1, G0_a_host_);
-  buildUnfoldedG0BlockHost(s, k2_vec, w2, G0_b_host_);
-
-  for (int b2 = 0; b2 < n_bands_; ++b2)
-    for (int b1 = 0; b1 < n_bands_; ++b1)
-      G(b1, b2) = sign * G(b1, b2) + M_unfolded_host_(b1, b2);
-
-  BandBlockView G_view(G);
-  matrixOperationsGMultibandHost(G0_a_host_, G0_b_host_, G_view, G0_M_host_);
-  if (dca::math::util::distance2(k1_vec, k2_vec) < 1.e-6 && w1 == w2) {
-    for (int b2 = 0; b2 < n_bands_; ++b2)
-      for (int b1 = 0; b1 < n_bands_; ++b1)
-        G(b1, b2) += G0_a_host_(b1, b2) * beta_;
-  }
-}
-
-template <class Parameters, DistType DT>
 template <typename SignType>
 double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t channel_index,
                                                             SignType factor) {
@@ -609,9 +417,6 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t ch
   //  TODO: set stream only if this thread gets exclusive access to G4.
   //  get_G4().setStream(queues_[0]);
   const FourPointType channel = Base::channels_[channel_index];
-  if (channel == FourPointType::PARTICLE_PARTICLE_UP_DOWN &&
-      needsMultibandPPDirectConstruction())
-    return updateG4MultibandPP(channel_index, factor);
 
   uint64_t start = Base::G4_[0].get_start();
   uint64_t end =
@@ -661,114 +466,6 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t ch
   }
   throw std::logic_error("Specified four point type not implemented by tp_accumulator_gpu." +
                          std::to_string(static_cast<int>(channel)));
-}
-
-template <class Parameters, DistType DT>
-template <typename SignType>
-double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4MultibandPP(
-    const std::size_t channel_index, SignType factor) {
-  auto& delta = G4_[channel_index];
-  delta = TpComplex(0., 0.);
-
-  const auto complex_factor = TpComplex(factor);
-  const auto sign_over_2 = TpComplex(0.5) * complex_factor;
-  const auto& exchange_frq = domains::FrequencyExchangeDomain::get_elements();
-  const auto& exchange_mom = domains::MomentumExchangeDomain::get_elements();
-
-  auto w_ex_minus_w = [](const int w, const int w_ex) { return w_ex + WTpDmn::dmn_size() - 1 - w; };
-
-  if constexpr (Base::spin_symmetric_) {
-    for (int w_ex_idx = 0; w_ex_idx < exchange_frq.size(); ++w_ex_idx) {
-      const int w_ex = exchange_frq[w_ex_idx];
-      for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) {
-        const int k_ex = exchange_mom[k_ex_idx];
-        if (k_ex == KDmn::parameter_type::origin_index())
-          continue;
-        const auto& q_vec = KDmn::parameter_type::get_elements()[k_ex];
-        for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2)
-          for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2)
-            for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1)
-              for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) {
-                const auto& k1_vec = KDmn::parameter_type::get_elements()[k1];
-                const auto& k2_vec = KDmn::parameter_type::get_elements()[k2];
-                std::vector<double> q_minus_k1(k1_vec.size(), 0.);
-                std::vector<double> q_minus_k2(k2_vec.size(), 0.);
-                for (int d = 0; d < int(q_vec.size()); ++d) {
-                  q_minus_k1[d] = q_vec[d] - k1_vec[d];
-                  q_minus_k2[d] = q_vec[d] - k2_vec[d];
-                }
-
-                for (int s = 0; s < 2; ++s) {
-                  getGMultibandHost(s, k1, k2, w1, w2, G_a_host_);
-                  getGMultibandDirectHost(!s, q_minus_k1, q_minus_k2, w_ex_minus_w(w1, w_ex),
-                                          w_ex_minus_w(w2, w_ex), G_b_host_);
-                  for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
-                    for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
-                      for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
-                        for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1)
-                          delta(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) +=
-                              sign_over_2 * G_a_host_(b1, b3) * G_b_host_(b2, b4);
-                }
-              }
-      }
-    }
-  }
-  else {
-    for (int w_ex_idx = 0; w_ex_idx < exchange_frq.size(); ++w_ex_idx) {
-      const int w_ex = exchange_frq[w_ex_idx];
-      for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) {
-        const int k_ex = exchange_mom[k_ex_idx];
-        if (k_ex == KDmn::parameter_type::origin_index())
-          continue;
-        const auto& q_vec = KDmn::parameter_type::get_elements()[k_ex];
-        for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2)
-          for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2)
-            for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1)
-              for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) {
-                const auto& k1_vec = KDmn::parameter_type::get_elements()[k1];
-                const auto& k2_vec = KDmn::parameter_type::get_elements()[k2];
-                std::vector<double> q_minus_k1(k1_vec.size(), 0.);
-                std::vector<double> q_minus_k2(k2_vec.size(), 0.);
-                for (int d = 0; d < int(q_vec.size()); ++d) {
-                  q_minus_k1[d] = q_vec[d] - k1_vec[d];
-                  q_minus_k2[d] = q_vec[d] - k2_vec[d];
-                }
-
-                getGMultibandHost(0, k1, k2, w1, w2, G_a_host_);
-                getGMultibandDirectHost(0, q_minus_k1, q_minus_k2, w_ex_minus_w(w1, w_ex),
-                                        w_ex_minus_w(w2, w_ex), G_b_host_);
-
-                for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
-                  for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
-                    for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
-                      for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1)
-                        delta(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) +=
-                            complex_factor * G_a_host_(b1, b3) * G_b_host_(b2, b4);
-
-                getGMultibandDirectHost(0, k1_vec, q_minus_k2, w1, w_ex_minus_w(w2, w_ex),
-                                        G_a_host_);
-                getGMultibandDirectHost(0, q_minus_k1, k2_vec, w_ex_minus_w(w1, w_ex), w2,
-                                        G_b_host_);
-
-                for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
-                  for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
-                    for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
-                      for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1)
-                        delta(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) -=
-                            complex_factor * G_a_host_(b1, b4) * G_b_host_(b2, b3);
-              }
-      }
-    }
-  }
-
-  G4DevType delta_dev("tp_acc_gpu::multiband_pp_delta");
-  delta_dev.setAsync(delta, queues_[0].getStream());
-  details::accumulateG4Device(get_G4Dev()[channel_index].ptr(), delta_dev.ptr(), delta_dev.size(),
-                              multiple_accumulators_, queues_[0].getStream());
-  BaseGpu::synchronizeStreams();
-
-  return 2. * WTpDmn::dmn_size() * WTpDmn::dmn_size() * KDmn::dmn_size() * KDmn::dmn_size() *
-         std::pow(n_bands_, 4);
 }
 
 template <class Parameters, DistType DT>
