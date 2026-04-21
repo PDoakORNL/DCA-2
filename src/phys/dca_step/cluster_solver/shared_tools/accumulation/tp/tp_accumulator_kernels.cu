@@ -653,18 +653,28 @@ __global__ void updateG4Kernel(GPUComplex<RealAlias<Scalar>>* __restrict__ G4,
     const GPUComplex<RealAlias<Scalar>> Ga_1 = G_up[i_a + ldgu * j_a];
     const GPUComplex<RealAlias<Scalar>> Ga_2 = G_down[i_a + ldgd * j_a];
 
-    int w1_b(g4_helper.wexMinus(w1, w_ex));
-    int w2_b(g4_helper.wexMinus(w2, w_ex));
-    int k1_b = g4_helper.kexMinus(k1, k_ex);
-    int k2_b = g4_helper.kexMinus(k2, k_ex);
+    int w1_b(w1);
+    int w2_b(w2);
+    int k1_b(k1);
+    int k2_b(k2);
+
+    // For Q=0, keep the partner leg on the same stored grid and use the
+    // explicit complex conjugate below. Finite-Q continues to use the folded
+    // (Q-k, nu-w) partner indices.
+    if (k_ex != 0 || w_ex != 0) {
+      w1_b = g4_helper.wexMinus(w1, w_ex);
+      w2_b = g4_helper.wexMinus(w2, w_ex);
+      k1_b = g4_helper.kexMinus(k1, k_ex);
+      k2_b = g4_helper.kexMinus(k2, k_ex);
+    }
 
     if (g4_helper.get_bands() == 1)
       g4_helper.extendGIndices(k1_b, k2_b, w1_b, w2_b);
     else
       g4_helper.extendGIndicesMultiBand(k1_b, k2_b, w1_b, w2_b);
 
-    // For the Q=0 Thomas-code convention, keep the external band placement and
-    // only take the complex conjugate of the minus leg.
+    // Keep the external band placement and take the complex conjugate of the
+    // partner leg directly.
     int i_b = nb * k1_b + no * w1_b + b2;
     int j_b = nb * k2_b + no * w2_b + b4;
 
