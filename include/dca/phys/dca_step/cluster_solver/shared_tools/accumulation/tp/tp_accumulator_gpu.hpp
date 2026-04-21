@@ -224,14 +224,14 @@ protected:
   void computeGSingleband(int s);
 
   template <class Configuration, typename SpScalar>
-  void prepareFiniteQMultibandPPData(const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M,
-                                     const std::array<Configuration, 2>& configs);
+  void prepareMultibandPPData(const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M,
+                              const std::array<Configuration, 2>& configs);
 
   template <typename SignType>
   double updateG4(const std::size_t channel_index, SignType factor);
 
   template <typename SignType>
-  double updateG4FiniteQMultibandPP(const std::size_t channel_index, SignType factor);
+  double updateG4MultibandPP(const std::size_t channel_index, SignType factor);
 
   void synchronizeStreams();
 #ifdef DCA_HAVE_MPI
@@ -283,7 +283,7 @@ private:
       CachedNdft<TpComplex, RDmn, WTpExtDmn, WTpExtPosDmn, linalg::CPU,
                  Base::non_density_density_>;
 
-  bool needsFiniteQMultibandPP() const;
+  bool needsMultibandPPDirectConstruction() const;
   void getGMultibandHost(int s, int k1, int k2, int w1, int w2, MatrixHost& G,
                          TpComplex sign = 0) const;
   void getGMultibandDirectHost(int s, const std::vector<double>& k1_vec,
@@ -393,8 +393,8 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::accumulate(
 
   computeG();
 
-  if (needsFiniteQMultibandPP())
-    prepareFiniteQMultibandPPData(M, configs);
+  if (needsMultibandPPDirectConstruction())
+    prepareMultibandPPData(M, configs);
 
 #ifndef NDEBUG
   G_debug_[0] = G_[0];
@@ -463,28 +463,19 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::computeGMultiband(const int s) 
 }
 
 template <class Parameters, DistType DT>
-bool TpAccumulator<Parameters, DT, linalg::GPU>::needsFiniteQMultibandPP() const {
+bool TpAccumulator<Parameters, DT, linalg::GPU>::needsMultibandPPDirectConstruction() const {
   if (n_bands_ <= 1)
     return false;
 
   const bool has_pp_channel =
       std::find(channels_.begin(), channels_.end(), FourPointType::PARTICLE_PARTICLE_UP_DOWN) !=
       channels_.end();
-  if (!has_pp_channel)
-    return false;
-
-  const auto origin = KDmn::parameter_type::origin_index();
-  for (const int k_ex : domains::MomentumExchangeDomain::get_elements()) {
-    if (k_ex != origin)
-      return true;
-  }
-
-  return false;
+  return has_pp_channel;
 }
 
 template <class Parameters, DistType DT>
 template <class Configuration, typename SpScalar>
-void TpAccumulator<Parameters, DT, linalg::GPU>::prepareFiniteQMultibandPPData(
+void TpAccumulator<Parameters, DT, linalg::GPU>::prepareMultibandPPData(
     const std::array<linalg::Matrix<SpScalar, linalg::GPU>, 2>& M,
     const std::array<Configuration, 2>& configs) {
   M_r_r_w_w_host_ = TpComplex(0., 0.);
@@ -618,8 +609,9 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t ch
   //  TODO: set stream only if this thread gets exclusive access to G4.
   //  get_G4().setStream(queues_[0]);
   const FourPointType channel = Base::channels_[channel_index];
-  if (channel == FourPointType::PARTICLE_PARTICLE_UP_DOWN && needsFiniteQMultibandPP())
-    return updateG4FiniteQMultibandPP(channel_index, factor);
+  if (channel == FourPointType::PARTICLE_PARTICLE_UP_DOWN &&
+      needsMultibandPPDirectConstruction())
+    return updateG4MultibandPP(channel_index, factor);
 
   uint64_t start = Base::G4_[0].get_start();
   uint64_t end =
@@ -673,7 +665,7 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4(const std::size_t ch
 
 template <class Parameters, DistType DT>
 template <typename SignType>
-double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4FiniteQMultibandPP(
+double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4MultibandPP(
     const std::size_t channel_index, SignType factor) {
   auto& delta = G4_[channel_index];
   delta = TpComplex(0., 0.);
@@ -769,7 +761,7 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4FiniteQMultibandPP(
     }
   }
 
-  G4DevType delta_dev("tp_acc_gpu::finite_q_pp_delta");
+  G4DevType delta_dev("tp_acc_gpu::multiband_pp_delta");
   delta_dev.setAsync(delta, queues_[0].getStream());
   details::accumulateG4Device(get_G4Dev()[channel_index].ptr(), delta_dev.ptr(), delta_dev.size(),
                               multiple_accumulators_, queues_[0].getStream());
