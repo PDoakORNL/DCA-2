@@ -194,6 +194,7 @@ public:
 protected:
   using typename BaseGpu::Matrix;
   using typename BaseGpu::MatrixHost;
+  using typename BaseGpu::RMatrix;
   using Base::beta_;
   using Base::channels_;
   using Base::extension_index_offset_;
@@ -305,7 +306,7 @@ private:
   mutable MatrixHost G0_a_host_;
   mutable MatrixHost G0_b_host_;
   mutable MatrixHost M_unfolded_host_;
-  mutable std::array<MatrixHost, 2> G_host_;
+  mutable std::array<linalg::ReshapableMatrix<TpComplex, linalg::CPU>, 2> G_host_;
   mutable RealSpaceSpGreensFunction M_r_r_w_w_host_;
 };
 
@@ -491,8 +492,8 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::prepareFiniteQMultibandPPData(
 
   std::array<linalg::Matrix<SpScalar, linalg::CPU>, 2> M_host;
   for (int s = 0; s < 2; ++s) {
-    G_host_[s].set(G_[s], thread_id_, 0);
-    M_host[s].set(M[s], thread_id_, 0);
+    G_host_[s] = G_[s];
+    M_host[s].set(M[s], queues_[0].getStream());
     ndft_host_.execute(configs[s], M_host[s], M_r_r_w_w_host_, s);
   }
 }
@@ -516,7 +517,7 @@ void TpAccumulator<Parameters, DT, linalg::GPU>::getGMultibandHost(const int s, 
   const int no = n_bands_ * KDmn::dmn_size();
   const int row = n_bands_ * k1 + no * w1_ext;
   const int col = n_bands_ * k2 + no * w2_ext;
-  const auto* const G_ptr = G_host_[s].ptr(row) + col * G_host_[s].leadingDimension();
+  const auto* const G_ptr = G_host_[s].ptr(row, col);
 
   for (int b2 = 0; b2 < n_bands_; ++b2)
     for (int b1 = 0; b1 < n_bands_; ++b1)
@@ -691,46 +692,32 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4FiniteQMultibandPP(
       const int w_ex = exchange_frq[w_ex_idx];
       for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) {
         const int k_ex = exchange_mom[k_ex_idx];
-        const bool direct_finite_q = k_ex != KDmn::parameter_type::origin_index();
+        if (k_ex == KDmn::parameter_type::origin_index())
+          continue;
         const auto& q_vec = KDmn::parameter_type::get_elements()[k_ex];
         for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2)
           for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2)
             for (int w1 = 0; w1 < WTpDmn::dmn_size(); ++w1)
               for (int k1 = 0; k1 < KDmn::dmn_size(); ++k1) {
-                if (!direct_finite_q) {
-                  for (int s = 0; s < 2; ++s) {
-                    getGMultibandHost(s, k1, k2, w1, w2, G_a_host_);
-                    getGMultibandHost(!s, q_minus_k(k1, k_ex), q_minus_k(k2, k_ex),
-                                      w_ex_minus_w(w1, w_ex), w_ex_minus_w(w2, w_ex), G_b_host_);
-                    for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
-                      for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
-                        for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
-                          for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1)
-                            delta(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) +=
-                                sign_over_2 * G_a_host_(b1, b3) * G_b_host_(b2, b4);
-                  }
+                const auto& k1_vec = KDmn::parameter_type::get_elements()[k1];
+                const auto& k2_vec = KDmn::parameter_type::get_elements()[k2];
+                std::vector<double> q_minus_k1(k1_vec.size(), 0.);
+                std::vector<double> q_minus_k2(k2_vec.size(), 0.);
+                for (int d = 0; d < int(q_vec.size()); ++d) {
+                  q_minus_k1[d] = q_vec[d] - k1_vec[d];
+                  q_minus_k2[d] = q_vec[d] - k2_vec[d];
                 }
-                else {
-                  const auto& k1_vec = KDmn::parameter_type::get_elements()[k1];
-                  const auto& k2_vec = KDmn::parameter_type::get_elements()[k2];
-                  std::vector<double> q_minus_k1(k1_vec.size(), 0.);
-                  std::vector<double> q_minus_k2(k2_vec.size(), 0.);
-                  for (int d = 0; d < int(q_vec.size()); ++d) {
-                    q_minus_k1[d] = q_vec[d] - k1_vec[d];
-                    q_minus_k2[d] = q_vec[d] - k2_vec[d];
-                  }
 
-                  for (int s = 0; s < 2; ++s) {
-                    getGMultibandHost(s, k1, k2, w1, w2, G_a_host_);
-                    getGMultibandDirectHost(!s, q_minus_k1, q_minus_k2, w_ex_minus_w(w1, w_ex),
-                                            w_ex_minus_w(w2, w_ex), G_b_host_);
-                    for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
-                      for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
-                        for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
-                          for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1)
-                            delta(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) +=
-                                sign_over_2 * G_a_host_(b1, b3) * G_b_host_(b2, b4);
-                  }
+                for (int s = 0; s < 2; ++s) {
+                  getGMultibandHost(s, k1, k2, w1, w2, G_a_host_);
+                  getGMultibandDirectHost(!s, q_minus_k1, q_minus_k2, w_ex_minus_w(w1, w_ex),
+                                          w_ex_minus_w(w2, w_ex), G_b_host_);
+                  for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
+                    for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
+                      for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
+                        for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1)
+                          delta(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) +=
+                              sign_over_2 * G_a_host_(b1, b3) * G_b_host_(b2, b4);
                 }
               }
       }
@@ -741,7 +728,8 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4FiniteQMultibandPP(
       const int w_ex = exchange_frq[w_ex_idx];
       for (int k_ex_idx = 0; k_ex_idx < exchange_mom.size(); ++k_ex_idx) {
         const int k_ex = exchange_mom[k_ex_idx];
-        const bool direct_finite_q = k_ex != KDmn::parameter_type::origin_index();
+        if (k_ex == KDmn::parameter_type::origin_index())
+          continue;
         const auto& q_vec = KDmn::parameter_type::get_elements()[k_ex];
         for (int w2 = 0; w2 < WTpDmn::dmn_size(); ++w2)
           for (int k2 = 0; k2 < KDmn::dmn_size(); ++k2)
@@ -757,12 +745,8 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4FiniteQMultibandPP(
                 }
 
                 getGMultibandHost(0, k1, k2, w1, w2, G_a_host_);
-                if (!direct_finite_q)
-                  getGMultibandHost(0, q_minus_k(k1, k_ex), q_minus_k(k2, k_ex),
-                                    w_ex_minus_w(w1, w_ex), w_ex_minus_w(w2, w_ex), G_b_host_);
-                else
-                  getGMultibandDirectHost(0, q_minus_k1, q_minus_k2, w_ex_minus_w(w1, w_ex),
-                                          w_ex_minus_w(w2, w_ex), G_b_host_);
+                getGMultibandDirectHost(0, q_minus_k1, q_minus_k2, w_ex_minus_w(w1, w_ex),
+                                        w_ex_minus_w(w2, w_ex), G_b_host_);
 
                 for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
                   for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
@@ -771,18 +755,10 @@ double TpAccumulator<Parameters, DT, linalg::GPU>::updateG4FiniteQMultibandPP(
                         delta(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) +=
                             complex_factor * G_a_host_(b1, b3) * G_b_host_(b2, b4);
 
-                if (!direct_finite_q) {
-                  getGMultibandHost(0, k1, q_minus_k(k2, k_ex), w1, w_ex_minus_w(w2, w_ex),
-                                    G_a_host_);
-                  getGMultibandHost(0, q_minus_k(k1, k_ex), k2, w_ex_minus_w(w1, w_ex), w2,
-                                    G_b_host_);
-                }
-                else {
-                  getGMultibandDirectHost(0, k1_vec, q_minus_k2, w1, w_ex_minus_w(w2, w_ex),
-                                          G_a_host_);
-                  getGMultibandDirectHost(0, q_minus_k1, k2_vec, w_ex_minus_w(w1, w_ex), w2,
-                                          G_b_host_);
-                }
+                getGMultibandDirectHost(0, k1_vec, q_minus_k2, w1, w_ex_minus_w(w2, w_ex),
+                                        G_a_host_);
+                getGMultibandDirectHost(0, q_minus_k1, k2_vec, w_ex_minus_w(w1, w_ex), w2,
+                                        G_b_host_);
 
                 for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
                   for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
