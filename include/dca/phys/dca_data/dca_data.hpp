@@ -469,18 +469,32 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
     std::cout << "  G4 domain order: (b1, b2, b3, b4, k1, w1, k2, w2, q, wex)\n";
     const int fixed_g_k = k_ind(1);
     const int fixed_g_w = w_ind(256);
-    std::cout << "  cluster_greens_function_G_k_w samples (20 values, fixed k=" << fixed_g_k
-              << ", w=" << fixed_g_w << "):\n";
-    int printed_g = 0;
-    for (int b1 = 0; b1 < n_bands && printed_g < 20; ++b1)
-      for (int s1 = 0; s1 < n_spins && printed_g < 20; ++s1)
-        for (int b2 = 0; b2 < n_bands && printed_g < 20; ++b2)
-          for (int s2 = 0; s2 < n_spins && printed_g < 20; ++s2) {
-            std::cout << "    [" << printed_g << "] "
-                      << "G(" << b1 << "," << s1 << "," << b2 << "," << s2 << ","
-                      << fixed_g_k << "," << fixed_g_w << ") = "
-                      << G_k_w(b1, s1, b2, s2, fixed_g_k, fixed_g_w) << '\n';
-            ++printed_g;
+    const int fixed_g_s1 = spin(0);
+    const int fixed_g_s2 = spin(0);
+    const int sample_bands[2] = {band(0), band(2)};
+    std::cout << "  constrained samples with b1,b2,b3,b4 in {0,2}, b1!=b3, b2!=b4"
+              << " (4 unique tuples possible):\n";
+    int printed_samples = 0;
+    for (int i1 = 0; i1 < 2; ++i1)
+      for (int i2 = 0; i2 < 2; ++i2)
+        for (int i3 = 0; i3 < 2; ++i3)
+          for (int i4 = 0; i4 < 2; ++i4) {
+            const int b1 = sample_bands[i1];
+            const int b2 = sample_bands[i2];
+            const int b3 = sample_bands[i3];
+            const int b4 = sample_bands[i4];
+            if (b1 == b3 || b2 == b4)
+              continue;
+
+            std::cout << "    [" << printed_samples << "] "
+                      << "(b1,b2,b3,b4)=(" << b1 << "," << b2 << "," << b3 << "," << b4 << ")\n";
+            std::cout << "      G(" << b1 << "," << fixed_g_s1 << "," << b3 << "," << fixed_g_s2
+                      << "," << fixed_g_k << "," << fixed_g_w << ") = "
+                      << G_k_w(b1, fixed_g_s1, b3, fixed_g_s2, fixed_g_k, fixed_g_w) << '\n';
+            std::cout << "      G(" << b2 << "," << fixed_g_s1 << "," << b4 << "," << fixed_g_s2
+                      << "," << fixed_g_k << "," << fixed_g_w << ") = "
+                      << G_k_w(b2, fixed_g_s1, b4, fixed_g_s2, fixed_g_k, fixed_g_w) << '\n';
+            ++printed_samples;
           }
   }
 
@@ -562,15 +576,22 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
           const int fixed_g4_w2 = w_vertex_ind(16);
           const int fixed_g4_q = k_ex_ind(0);
           const int fixed_g4_wex = w_ex_ind(0);
-          std::cout << "  " << G4_channel.get_name() << " samples (20 values, fixed k1="
+          std::cout << "  " << G4_channel.get_name() << " samples (fixed k1="
                     << fixed_g4_k1 << ", w1=" << fixed_g4_w1 << ", k2=" << fixed_g4_k2
                     << ", w2=" << fixed_g4_w2 << ", q=" << fixed_g4_q
-                    << ", wex=" << fixed_g4_wex << "):\n";
+                    << ", wex=" << fixed_g4_wex << ", same constrained tuples):\n";
           int printed_g4 = 0;
-          for (int b1 = 0; b1 < n_bands && printed_g4 < 20; ++b1)
-            for (int b2 = 0; b2 < n_bands && printed_g4 < 20; ++b2)
-              for (int b3 = 0; b3 < n_bands && printed_g4 < 20; ++b3)
-                for (int b4 = 0; b4 < n_bands && printed_g4 < 20; ++b4) {
+          for (int i1 = 0; i1 < 2; ++i1)
+            for (int i2 = 0; i2 < 2; ++i2)
+              for (int i3 = 0; i3 < 2; ++i3)
+                for (int i4 = 0; i4 < 2; ++i4) {
+                  const int b1 = sample_bands[i1];
+                  const int b2 = sample_bands[i2];
+                  const int b3 = sample_bands[i3];
+                  const int b4 = sample_bands[i4];
+                  if (b1 == b3 || b2 == b4)
+                    continue;
+
                   std::cout << "    [" << printed_g4 << "] "
                             << "G4(" << b1 << "," << b2 << "," << b3 << "," << b4 << ","
                             << fixed_g4_k1 << "," << fixed_g4_w1 << "," << fixed_g4_k2 << ","
