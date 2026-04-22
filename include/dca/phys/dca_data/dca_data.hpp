@@ -464,6 +464,12 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
   const auto w_ex_ind = [n_w_ex](const int i) { return std::min(i, n_w_ex - 1); };
 
   if (debug_write_samples) {
+    constexpr int constrained_tuples[4][4] = {
+        {0, 0, 2, 2},
+        {0, 2, 2, 0},
+        {2, 0, 0, 2},
+        {2, 2, 0, 0},
+    };
     std::cout << "\n[DCA_DEBUG_WRITE_SAMPLES] About to write functions to HDF5\n";
     std::cout << "  G_k_w domain order: (b1, s1, b2, s2, k, w)\n";
     std::cout << "  G4 domain order: (b1, b2, b3, b4, k1, w1, k2, w2, q, wex)\n";
@@ -471,31 +477,23 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
     const int fixed_g_w = w_ind(256);
     const int fixed_g_s1 = spin(0);
     const int fixed_g_s2 = spin(0);
-    const int sample_bands[2] = {band(0), band(2)};
-    std::cout << "  constrained samples with b1,b2,b3,b4 in {0,2}, b1!=b3, b2!=b4"
-              << " (4 unique tuples possible):\n";
+    std::cout << "  constrained samples using 4 hard-coded tuples:\n";
     int printed_samples = 0;
-    for (int i1 = 0; i1 < 2; ++i1)
-      for (int i2 = 0; i2 < 2; ++i2)
-        for (int i3 = 0; i3 < 2; ++i3)
-          for (int i4 = 0; i4 < 2; ++i4) {
-            const int b1 = sample_bands[i1];
-            const int b2 = sample_bands[i2];
-            const int b3 = sample_bands[i3];
-            const int b4 = sample_bands[i4];
-            if (b1 == b3 || b2 == b4)
-              continue;
-
-            std::cout << "    [" << printed_samples << "] "
-                      << "(b1,b2,b3,b4)=(" << b1 << "," << b2 << "," << b3 << "," << b4 << ")\n";
-            std::cout << "      G(" << b1 << "," << fixed_g_s1 << "," << b3 << "," << fixed_g_s2
-                      << "," << fixed_g_k << "," << fixed_g_w << ") = "
-                      << G_k_w(b1, fixed_g_s1, b3, fixed_g_s2, fixed_g_k, fixed_g_w) << '\n';
-            std::cout << "      G(" << b2 << "," << fixed_g_s1 << "," << b4 << "," << fixed_g_s2
-                      << "," << fixed_g_k << "," << fixed_g_w << ") = "
-                      << G_k_w(b2, fixed_g_s1, b4, fixed_g_s2, fixed_g_k, fixed_g_w) << '\n';
-            ++printed_samples;
-          }
+    for (int it = 0; it < 4; ++it) {
+      const int b1 = constrained_tuples[it][0];
+      const int b2 = constrained_tuples[it][1];
+      const int b3 = constrained_tuples[it][2];
+      const int b4 = constrained_tuples[it][3];
+      std::cout << "    [" << printed_samples << "] "
+                << "(b1,b2,b3,b4)=(" << b1 << "," << b2 << "," << b3 << "," << b4 << ")\n";
+      std::cout << "      G(" << b1 << "," << fixed_g_s1 << "," << b3 << "," << fixed_g_s2 << ","
+                << fixed_g_k << "," << fixed_g_w << ") = "
+                << G_k_w(b1, fixed_g_s1, b3, fixed_g_s2, fixed_g_k, fixed_g_w) << '\n';
+      std::cout << "      G(" << b2 << "," << fixed_g_s1 << "," << b4 << "," << fixed_g_s2 << ","
+                << fixed_g_k << "," << fixed_g_w << ") = "
+                << G_k_w(b2, fixed_g_s1, b4, fixed_g_s2, fixed_g_k, fixed_g_w) << '\n';
+      ++printed_samples;
+    }
   }
 
   writer.open_group("functions");
@@ -570,6 +568,12 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
     if constexpr (DT != DistType::BLOCKED) {
       for (const auto& G4_channel : G4_) {
         if (debug_write_samples) {
+          constexpr int constrained_tuples[4][4] = {
+              {0, 0, 2, 2},
+              {0, 2, 2, 0},
+              {2, 0, 0, 2},
+              {2, 2, 0, 0},
+          };
           const int fixed_g4_k1 = k_ind(1);
           const int fixed_g4_k2 = k_ind(1);
           const int fixed_g4_w1 = w_vertex_ind(16);
@@ -579,29 +583,23 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
           std::cout << "  " << G4_channel.get_name() << " samples (fixed k1="
                     << fixed_g4_k1 << ", w1=" << fixed_g4_w1 << ", k2=" << fixed_g4_k2
                     << ", w2=" << fixed_g4_w2 << ", q=" << fixed_g4_q
-                    << ", wex=" << fixed_g4_wex << ", same constrained tuples):\n";
+                    << ", wex=" << fixed_g4_wex << ", 4 hard-coded tuples):\n";
           int printed_g4 = 0;
-          for (int i1 = 0; i1 < 2; ++i1)
-            for (int i2 = 0; i2 < 2; ++i2)
-              for (int i3 = 0; i3 < 2; ++i3)
-                for (int i4 = 0; i4 < 2; ++i4) {
-                  const int b1 = sample_bands[i1];
-                  const int b2 = sample_bands[i2];
-                  const int b3 = sample_bands[i3];
-                  const int b4 = sample_bands[i4];
-                  if (b1 == b3 || b2 == b4)
-                    continue;
-
-                  std::cout << "    [" << printed_g4 << "] "
-                            << "G4(" << b1 << "," << b2 << "," << b3 << "," << b4 << ","
-                            << fixed_g4_k1 << "," << fixed_g4_w1 << "," << fixed_g4_k2 << ","
-                            << fixed_g4_w2 << "," << fixed_g4_q << "," << fixed_g4_wex
-                            << ") = "
-                            << G4_channel(b1, b2, b3, b4, fixed_g4_k1, fixed_g4_w1, fixed_g4_k2,
-                                          fixed_g4_w2, fixed_g4_q, fixed_g4_wex)
-                            << '\n';
-                  ++printed_g4;
-                }
+          for (int it = 0; it < 4; ++it) {
+            const int b1 = constrained_tuples[it][0];
+            const int b2 = constrained_tuples[it][1];
+            const int b3 = constrained_tuples[it][2];
+            const int b4 = constrained_tuples[it][3];
+            std::cout << "    [" << printed_g4 << "] "
+                      << "G4(" << b1 << "," << b2 << "," << b3 << "," << b4 << ","
+                      << fixed_g4_k1 << "," << fixed_g4_w1 << "," << fixed_g4_k2 << ","
+                      << fixed_g4_w2 << "," << fixed_g4_q << "," << fixed_g4_wex
+                      << ") = "
+                      << G4_channel(b1, b2, b3, b4, fixed_g4_k1, fixed_g4_w1, fixed_g4_k2,
+                                    fixed_g4_w2, fixed_g4_q, fixed_g4_wex)
+                      << '\n';
+            ++printed_g4;
+          }
         }
         writer.execute(G4_channel);
       }
