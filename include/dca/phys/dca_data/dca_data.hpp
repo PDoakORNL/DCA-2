@@ -467,31 +467,21 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
     std::cout << "\n[DCA_DEBUG_WRITE_SAMPLES] About to write functions to HDF5\n";
     std::cout << "  G_k_w domain order: (b1, s1, b2, s2, k, w)\n";
     std::cout << "  G4 domain order: (b1, b2, b3, b4, k1, w1, k2, w2, q, wex)\n";
-    std::cout << "  cluster_greens_function_G_k_w samples (20 values):\n";
+    const int fixed_g_k = k_ind(1);
+    const int fixed_g_w = w_ind(256);
+    std::cout << "  cluster_greens_function_G_k_w samples (20 values, fixed k=" << fixed_g_k
+              << ", w=" << fixed_g_w << "):\n";
     int printed_g = 0;
     for (int b1 = 0; b1 < n_bands && printed_g < 20; ++b1)
       for (int s1 = 0; s1 < n_spins && printed_g < 20; ++s1)
         for (int b2 = 0; b2 < n_bands && printed_g < 20; ++b2)
-          for (int s2 = 0; s2 < n_spins && printed_g < 20; ++s2)
-            for (int k = 0; k < std::min(n_k, 2) && printed_g < 20; ++k)
-              for (int w_choice = 0; w_choice < 5 && printed_g < 20; ++w_choice) {
-                int w = 0;
-                if (w_choice == 0)
-                  w = w_ind(0);
-                else if (w_choice == 1)
-                  w = w_ind(1);
-                else if (w_choice == 2)
-                  w = w_ind(n_w / 2);
-                else if (w_choice == 3)
-                  w = w_ind(n_w / 2 + 1);
-                else
-                  w = w_ind(n_w - 1);
-
-                std::cout << "    [" << printed_g << "] "
-                          << "G(" << b1 << "," << s1 << "," << b2 << "," << s2 << "," << k
-                          << "," << w << ") = " << G_k_w(b1, s1, b2, s2, k, w) << '\n';
-                ++printed_g;
-              }
+          for (int s2 = 0; s2 < n_spins && printed_g < 20; ++s2) {
+            std::cout << "    [" << printed_g << "] "
+                      << "G(" << b1 << "," << s1 << "," << b2 << "," << s2 << ","
+                      << fixed_g_k << "," << fixed_g_w << ") = "
+                      << G_k_w(b1, s1, b2, s2, fixed_g_k, fixed_g_w) << '\n';
+            ++printed_g;
+          }
   }
 
   writer.open_group("functions");
@@ -566,48 +556,31 @@ void DcaData<Parameters, DT>::write(Writer& writer) {
     if constexpr (DT != DistType::BLOCKED) {
       for (const auto& G4_channel : G4_) {
         if (debug_write_samples) {
-          std::cout << "  " << G4_channel.get_name() << " samples (20 values):\n";
+          const int fixed_g4_k1 = k_ind(1);
+          const int fixed_g4_k2 = k_ind(1);
+          const int fixed_g4_w1 = w_vertex_ind(16);
+          const int fixed_g4_w2 = w_vertex_ind(16);
+          const int fixed_g4_q = k_ex_ind(0);
+          const int fixed_g4_wex = w_ex_ind(0);
+          std::cout << "  " << G4_channel.get_name() << " samples (20 values, fixed k1="
+                    << fixed_g4_k1 << ", w1=" << fixed_g4_w1 << ", k2=" << fixed_g4_k2
+                    << ", w2=" << fixed_g4_w2 << ", q=" << fixed_g4_q
+                    << ", wex=" << fixed_g4_wex << "):\n";
           int printed_g4 = 0;
           for (int b1 = 0; b1 < n_bands && printed_g4 < 20; ++b1)
             for (int b2 = 0; b2 < n_bands && printed_g4 < 20; ++b2)
               for (int b3 = 0; b3 < n_bands && printed_g4 < 20; ++b3)
-                for (int b4 = 0; b4 < n_bands && printed_g4 < 20; ++b4)
-                  for (int k1 = 0; k1 < std::min(n_k, 2) && printed_g4 < 20; ++k1)
-                    for (int k2 = 0; k2 < std::min(n_k, 2) && printed_g4 < 20; ++k2)
-                      for (int w1_choice = 0; w1_choice < 3 && printed_g4 < 20; ++w1_choice)
-                        for (int w2_choice = 0; w2_choice < 3 && printed_g4 < 20; ++w2_choice)
-                          for (int q = 0; q < std::min(n_k_ex, 2) && printed_g4 < 20; ++q)
-                            for (int wex_choice = 0; wex_choice < 2 && printed_g4 < 20; ++wex_choice) {
-                              int w1 = 0;
-                              int w2 = 0;
-                              int wex = 0;
-                              if (w1_choice == 0)
-                                w1 = w_vertex_ind(0);
-                              else if (w1_choice == 1)
-                                w1 = w_vertex_ind(n_w_vertex / 2);
-                              else
-                                w1 = w_vertex_ind(n_w_vertex - 1);
-
-                              if (w2_choice == 0)
-                                w2 = w_vertex_ind(0);
-                              else if (w2_choice == 1)
-                                w2 = w_vertex_ind(n_w_vertex / 2);
-                              else
-                                w2 = w_vertex_ind(n_w_vertex - 1);
-
-                              if (wex_choice == 0)
-                                wex = w_ex_ind(0);
-                              else
-                                wex = w_ex_ind(n_w_ex - 1);
-
-                              std::cout << "    [" << printed_g4 << "] "
-                                        << "G4(" << b1 << "," << b2 << "," << b3 << "," << b4
-                                        << "," << k1 << "," << w1 << "," << k2 << "," << w2
-                                        << "," << q << "," << wex << ") = "
-                                        << G4_channel(b1, b2, b3, b4, k1, w1, k2, w2, q, wex)
-                                        << '\n';
-                              ++printed_g4;
-                            }
+                for (int b4 = 0; b4 < n_bands && printed_g4 < 20; ++b4) {
+                  std::cout << "    [" << printed_g4 << "] "
+                            << "G4(" << b1 << "," << b2 << "," << b3 << "," << b4 << ","
+                            << fixed_g4_k1 << "," << fixed_g4_w1 << "," << fixed_g4_k2 << ","
+                            << fixed_g4_w2 << "," << fixed_g4_q << "," << fixed_g4_wex
+                            << ") = "
+                            << G4_channel(b1, b2, b3, b4, fixed_g4_k1, fixed_g4_w1, fixed_g4_k2,
+                                          fixed_g4_w2, fixed_g4_q, fixed_g4_wex)
+                            << '\n';
+                  ++printed_g4;
+                }
         }
         writer.execute(G4_channel);
       }
