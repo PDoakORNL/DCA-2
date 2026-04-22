@@ -319,8 +319,8 @@ void ThreebandHubbard<PointGroupType>::initializeH0WithQ(
   for (int k_ind = 0; k_ind < KDmn::dmn_size(); ++k_ind) {
     const auto& k = k_vecs[k_ind];
 
-    const auto valdpx = 2. * I * t_pd * std::sin(k[0] / 2.);
-    const auto valdpy = -2. * I * t_pd * std::sin(k[1] / 2.);
+    const auto valdpx = -2. * I * t_pd * std::sin(k[0] / 2.);
+    const auto valdpy = 2. * I * t_pd * std::sin(k[1] / 2.);
     const auto valpxpy = 4. * t_pp * std::sin(k[0] / 2.) * std::sin(k[1] / 2.);
 
     for (int s = 0; s < 2; s++) {
