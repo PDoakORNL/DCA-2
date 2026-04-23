@@ -395,7 +395,7 @@ void TpAccumulator<Parameters, DT, linalg::CPU>::getGMultiband(int s, int k1, in
   const auto* const G_ptr = &G_(0, 0, s, k1, k2, w1_ext, w2_ext);
   for (int b2 = 0; b2 < n_bands_; ++b2)
     for (int b1 = 0; b1 < n_bands_; ++b1) {
-      G(b1, b2) = sign * G(b1, b2) + G_ptr[b2 + b1 * n_bands_];
+      G(b1, b2) = sign * G(b1, b2) + G_ptr[b1 + b2 * n_bands_];
 #ifndef NDEBUG
     // if (std::abs(G(b1, b2).imag()) > 10)  // std::isnan(imag(G_(b1, b2, s, k1, k2, w1_ext, w2_ext))))
     //   std::cout << w1 << "," << w2 << "," << k1 << "," << k2 << "," << b1 << "," << b2 << ","
@@ -641,16 +641,23 @@ double TpAccumulator<Parameters, DT, linalg::CPU>::updateG4(const int channel_id
                       // updateG4Atomic(G4_ptr, s, k1, k2, w1, w2, !s, q_minus_k(k1, k_ex),
                       //                q_minus_k(k2, k_ex), w_ex_minus_w(w1, w_ex),
                       //                w_ex_minus_w(w2, w_ex), sign_over_2, false);
-                      // contraction: G_{b1,b3}(k1, k2) * G_{b2,b4}(q-k1, q-k2).
+                      // For zero transfer, use the explicit complex conjugate of the partner leg,
+                      // matching the GPU implementation and the identity
+                      // G4_pp_ud(Q=0) = G1 * conj(G2).
                       getGMultiband(s, k1, k2, w1, w2, G_a_);
-                      getGMultiband(!s, q_minus_k(k1, k_ex), q_minus_k(k2, k_ex),
-                                    w_ex_minus_w(w1, w_ex), w_ex_minus_w(w2, w_ex), G_b_);
+                      if (k_ex == 0 && w_ex == 0)
+                        getGMultiband(!s, k1, k2, w1, w2, G_b_);
+                      else
+                        getGMultiband(!s, q_minus_k(k1, k_ex), q_minus_k(k2, k_ex),
+                                      w_ex_minus_w(w1, w_ex), w_ex_minus_w(w2, w_ex), G_b_);
                       for (int b4 = 0; b4 < BDmn::dmn_size(); ++b4)
                         for (int b3 = 0; b3 < BDmn::dmn_size(); ++b3)
                           for (int b2 = 0; b2 < BDmn::dmn_size(); ++b2)
                             for (int b1 = 0; b1 < BDmn::dmn_size(); ++b1) {
                               G4(b1, b2, b3, b4, k1, w1, k2, w2, k_ex_idx, w_ex_idx) +=
-                                  sign_over_2 * G_a_(b1, b3) * G_b_(b2, b4);
+                                  (k_ex == 0 && w_ex == 0)
+                                      ? sign_over_2 * G_a_(b1, b3) * std::conj(G_b_(b2, b4))
+                                      : sign_over_2 * G_a_(b1, b3) * G_b_(b2, b4);
                             }
                     }
                   }
