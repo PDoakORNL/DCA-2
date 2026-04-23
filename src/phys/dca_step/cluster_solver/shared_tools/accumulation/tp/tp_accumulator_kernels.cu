@@ -167,8 +167,8 @@ __global__ void computeGMultibandKernel(GPUComplex<Real>* __restrict__ G, int ld
   __syncthreads();
   GPUComplex<Real> G_val_store = G[id_i + ldg * id_j];
 
-  const GPUComplex<Real>* const G0_w1 = G0 + nb * k1 + no * w1;
-  const GPUComplex<Real>* const G0_w2 = G0 + nb * k2 + no * w2;
+  const GPUComplex<Real>* const G0_w2 = G0 + nb * k1 + no * w1;
+  const GPUComplex<Real>* const G0_w1 = G0 + nb * k2 + no * w2;
 
   G_val_store.x = 0;
   G_val_store.y = 0;
@@ -648,8 +648,8 @@ __global__ void updateG4Kernel(GPUComplex<RealAlias<Scalar>>* __restrict__ G4,
       g4_helper.extendGIndices(k1_a, k2_a, w1_a, w2_a);
     else
       g4_helper.extendGIndicesMultiBand(k1_a, k2_a, w1_a, w2_a);
-    int i_a = nb * k1_a + no * w1_a + b1;
-    int j_a = nb * k2_a + no * w2_a + b3;
+    int i_a = nb * k1_a + no * w1_a + b3;
+    int j_a = nb * k2_a + no * w2_a + b1;
     const GPUComplex<RealAlias<Scalar>> Ga_1 = G_up[i_a + ldgu * j_a];
     const GPUComplex<RealAlias<Scalar>> Ga_2 = G_down[i_a + ldgd * j_a];
 
@@ -675,8 +675,8 @@ __global__ void updateG4Kernel(GPUComplex<RealAlias<Scalar>>* __restrict__ G4,
 
     // Keep the external band placement and take the complex conjugate of the
     // partner leg directly.
-    int i_b = nb * k1_b + no * w1_b + b2;
-    int j_b = nb * k2_b + no * w2_b + b4;
+    int i_b = nb * k1_b + no * w1_b + b4;
+    int j_b = nb * k2_b + no * w2_b + b2;
 
     const GPUComplex<RealAlias<Scalar>> Gb_1 = conj(G_down[i_b + ldgd * j_b]);
     const GPUComplex<RealAlias<Scalar>> Gb_2 = conj(G_up[i_b + ldgu * j_b]);
