@@ -43,12 +43,28 @@ namespace func {
 
 /** The tensor class used through DCA++.
  *  This is a pretty complex construct but probably helps keeping track of the large number of
- * different tensors over domains in the code. The memory layout is close packed so it is generally
- * necessary to copy slices of functions into matrices or vectors for efficient calculation.
+ *  different tensors over domains in the code. The memory layout is close packed so it is generally
+ *  necessary to copy slices of functions into matrices or vectors for efficient calculation.
  *
- *  First domain is fastest, indexes are in order of domain.
+ *  Ideally you should never access the raw storage for a function.
+ *  nor should you need to know the layout, but it practice all sorts
+ *  of thing have been done over time in the code base.
+ *
+ *  Use this class in the simplest way first i.e. use the operator()
+ *  accessors. If profiling reveals this is just too inefficient or if
+ *  you need to copy out a vector or matrix that the slice API doesn't
+ *  support you'll need to know about the layout.
+ *
+ *  Simply speaking the first domain is the fastest, indexes are in
+ *  order of domain. if domains are nested this ordering continues to
+ *  be true.
+ *
  *  example:
  *  func<double, dmn_variadic<dmn_0<4, double>, dmn_0<8, double>> a_func
+ *
+ *  Memory layout for a DCA function with addresses going up as you
+ *  read left to right and down. So if each successive adress contains
+ *  a value that is the next integer:
  *  0  1  2  3
  *  4  5  6  7
  *  8  9  10 11
@@ -58,11 +74,20 @@ namespace func {
  *  24 25 26 27
  *  28 29 30 21
  *
- *  the following is true
+ *  Using the accessor the following is true
  *  a_func(0,3) == 12
  *  a_func(3,0) == 3
  *
- *  i.e. row major layout with column first indexing.
+ *  people call this column major layout because when they write the
+ *  matrix I wrote in memory above like you would in conventional
+ *  linear algebra notation. Where the first index represents the row it makes the
+ *  sequential in memory values run down the column.
+ *
+ *  0 4 8  12
+ *  1 5 9  13
+ *  2 6 7  10
+ *  3 7 11 15
+ *
  */
 template <typename scalartype, class domain, DistType DT = DistType::NONE>
 class function;

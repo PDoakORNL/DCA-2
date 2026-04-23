@@ -95,10 +95,10 @@ TEST(Function, TestDomain4a) {
   try {
     // std::cout << "Leaf indexing \n";
     int index = 0;
-    for (int i0 = 0; i0 < 1; ++i0) {
-      for (int i1 = 0; i1 < 2; ++i1) {
-        for (int i2 = 0; i2 < 4; ++i2) {
-          for (int i3 = 0; i3 < 8; ++i3) {
+    for (int i3 = 0; i3 < 8; ++i3) {
+      for (int i2 = 0; i2 < 4; ++i2) {
+        for (int i1 = 0; i1 < 2; ++i1) {
+          for (int i0 = 0; i0 < 1; ++i0) {
             // std::cout << i0 << "," << i1 << "," << i2 << "," << i3 << "\n";
             dca::testing::function_4a.operator()(i0, i1, i2, i3) = index++;
             // dca::testing::function_4a.operator()(i3,i2,i1,i0) = index; bad ordering
@@ -106,12 +106,25 @@ TEST(Function, TestDomain4a) {
         }
       }
     }
-    // std::cout << "Branch indexing \n";
+
+    int lin_max = 64;
+
+    // If you think of the indexes as row, column, z, other
+    // it's first index fastest, the layout is what C calls column
+    // major order, we'll just call it first index fastest.
+    for (int il = 0; il < lin_max; ++il) {
+      int lin_value = *(dca::testing::function_4a.begin() + il);
+      std::cout << lin_value << " ";
+      EXPECT_EQ(lin_value, il);
+    }
+
     index = 0;
-    for (int i0 = 0; i0 < 2; ++i0) {
-      for (int i1 = 0; i1 < 32; ++i1) {
+    for (int i1 = 0; i1 < 32; ++i1) {
+      for (int i0 = 0; i0 < 2; ++i0) {
         // std::cout << i0 << "," << i1 << "\n";
-        dca::testing::function_4a.operator()(i0, i1) = index++;
+        EXPECT_TRUE(dca::testing::function_4a.operator()(i0, i1) == index)
+            << dca::testing::function_4a.operator()(i0, i1) << " " << index << '\n';
+        ++index;
       }
     }
   }
