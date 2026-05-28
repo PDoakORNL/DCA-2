@@ -301,6 +301,8 @@ double DcaLoop<ParametersType, DcaDataType, MCIntegratorType, DIST>::workTheClus
   if (parameters.get_disorder_num_configurations() > 0) {
     // additional things for summation and getting the post solve G
     // to sum will need to be done here
+    // NOTE! Right now the disorder configurations will be different
+    // on each rank.
     MakeDisorderConfigurations<ParametersType> make_disorder_configurations;
     make_disorder_configurations(parameters, DCA_info_struct.disorder_configurations,
                                  DCA_info_struct.disorder_weights);

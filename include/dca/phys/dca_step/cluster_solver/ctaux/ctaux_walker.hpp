@@ -517,12 +517,6 @@ CtauxWalker<device_t, Parameters, Data>::CtauxWalker(Parameters& parameters_ref,
   }
 }
 
-<<<<<<< HEAD
-
-||||||| parent of f58400f18 (temp commit for disorder design while spack dev)
-
-=======
->>>>>>> f58400f18 (temp commit for disorder design while spack dev)
 template <dca::linalg::DeviceType device_t, class Parameters, class Data>
 void CtauxWalker<device_t, Parameters, Data>::printSummary() const {
   // std::defaultfloat is only supported by GCC 5 or later.

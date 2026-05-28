@@ -389,6 +389,7 @@ int Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, s
 
   buffer_size += AnalysisParameters::getBufferSize(concurrency);
   buffer_size += DcaParameters::getBufferSize(concurrency);
+  buffer_size += DisorderParameters::getBufferSize(concurrency);
   buffer_size += DomainsParameters::getBufferSize(concurrency);
   buffer_size += DoubleCountingParameters::getBufferSize(concurrency);
   buffer_size += EdSolverParameters::getBufferSize(concurrency);
@@ -409,6 +410,7 @@ void Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, 
                                  int& position) const {
   AnalysisParameters::pack(concurrency, buffer, buffer_size, position);
   DcaParameters::pack(concurrency, buffer, buffer_size, position);
+  DisorderParameters::pack(concurrency, buffer, buffer_size, position);
   DomainsParameters::pack(concurrency, buffer, buffer_size, position);
   DoubleCountingParameters::pack(concurrency, buffer, buffer_size, position);
   EdSolverParameters::pack(concurrency, buffer, buffer_size, position);
@@ -427,6 +429,7 @@ void Parameters<Concurrency, Threading, Profiler, Model, RandomNumberGenerator, 
                                    int& position) {
   AnalysisParameters::unpack(concurrency, buffer, buffer_size, position);
   DcaParameters::unpack(concurrency, buffer, buffer_size, position);
+  DisorderParameters::unpack(concurrency, buffer, buffer_size, position);
   DomainsParameters::unpack(concurrency, buffer, buffer_size, position);
   DoubleCountingParameters::unpack(concurrency, buffer, buffer_size, position);
   EdSolverParameters::unpack(concurrency, buffer, buffer_size, position);

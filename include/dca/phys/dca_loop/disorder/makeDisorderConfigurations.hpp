@@ -65,6 +65,8 @@ public:
       throw std::runtime_error("More unique vectors requested than possible.");
     }
 
+    // This means each rank will get a different rng! if that is not
+    // desirable we need to add some broadcast code here.
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(0, 1);
