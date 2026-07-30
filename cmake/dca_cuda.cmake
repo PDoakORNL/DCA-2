@@ -7,6 +7,13 @@
 #set(CUDA_ARCHITECTURES "sm_60" CACHE STRING "Name of the real architecture to build for.")
 set(MAGMA_DIR "" CACHE PATH "Path to the MAGMA installation directory. Hint for CMake to find MAGMA.")
 
+# CMake's CUDA architecture detection can fall back to very old GPUs (e.g. sm_52), which DCA++
+# no longer targets in practice. Set a project default before enable_language(CUDA), while still
+# allowing users to override it with -DCMAKE_CUDA_ARCHITECTURES=<arch>.
+if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "")
+  set(CMAKE_CUDA_ARCHITECTURES 80 CACHE STRING "CUDA architectures to build for.")
+endif()
+
 set(DCA_HAVE_CUDA FALSE CACHE INTERNAL "")
 set(DCA_HAVE_MAGMA FALSE CACHE INTERNAL "")
 set(DCA_GPU_LIBS "" CACHE INTERNAL "")
@@ -32,7 +39,7 @@ if (CMAKE_CUDA_COMPILER)
   dca_add_haves_define(DCA_HAVE_GPU)
 
   list(APPEND DCA_GPU_LIBS CUDA::cudart CUDA::cublas CUDA::cusparse)
-  set(DCA_CUDA_PROPERTIES "CMAKE_CUDA_ARCHITECTURES 70")
+  set(DCA_CUDA_PROPERTIES "CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}")
   list(APPEND CUDAFLAGS "--expt-relaxed-constexpr" ${DCA_CUDA_OPTIONS})
   set(CMAKE_CUDA_STANDARD 17)
   set(CVD_LAUNCHER "" CACHE INTERNAL "launch script for setting the Cuda visible devices.")

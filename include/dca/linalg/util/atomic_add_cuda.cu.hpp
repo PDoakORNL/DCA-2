@@ -38,8 +38,24 @@ __device__ double inline atomicAddImpl(double* address, const double val) {
   return __longlong_as_double(old);
 }
 
+__device__ void inline atomicAdd(float* address, const float val) {
+  ::atomicAdd(address, val);
+}
+
 __device__ void inline atomicAdd(double* address, const double val) {
   atomicAddImpl(address, val);
+}
+
+__device__ void inline atomicAdd(cuComplex* address, cuComplex val) {
+  float* a_f = reinterpret_cast<float*>(address);
+  ::atomicAdd(a_f, val.x);
+  ::atomicAdd(a_f + 1, val.y);
+}
+
+__device__ void inline atomicAdd(cuDoubleComplex* address, cuDoubleComplex val) {
+  double* a_d = reinterpret_cast<double*>(address);
+  atomicAddImpl(a_d, val.x);
+  atomicAddImpl(a_d + 1, val.y);
 }
 
 #elif defined(DCA_HAVE_HIP)
